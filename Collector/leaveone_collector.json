@@ -1,0 +1,23 @@
+{
+  "object" : "experiment",
+  "dataset" : "disease",
+  "method": "LeaveOne",
+  "model": "lstm",
+  "folder": "200626_type",
+  "collect": {
+    "sensor_type": ["pressure", "acc", "gyro"],
+    "sensor_number": {
+      "pressure" : 16,
+      "acc" : 6,
+      "gyro" : 6
+    },
+    "category": {
+      "PA" : 0,
+      "OA" : 1,
+      "NO" : 2
+    },
+    "combine_shape": "tri",
+    "minimum_threshold" : 63,
+    "remover": []
+  }
+}

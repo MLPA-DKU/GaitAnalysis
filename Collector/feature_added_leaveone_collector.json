@@ -1,0 +1,22 @@
+{
+  "object" : "experiment",
+  "dataset" : "disease",
+  "method": "Feature_Added_LeaveOne",
+  "model": "BasicNet",
+  "folder": "original",
+  "collect": {
+    "sensor_type": ["pressure", "acc", "gyro"],
+    "sensor_number": {
+      "pressure" : 16,
+      "acc" : 6,
+      "gyro" : 6
+    },
+    "category": {
+      "PA" : 0,
+      "OA" : 1,
+      "NO" : 2
+    },
+    "combine_shape": "tri",
+    "minimum_threshold" : 63
+  }
+}

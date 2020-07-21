@@ -1,0 +1,40 @@
+{
+  "object" : "create",
+  "dataset" : "type",
+  "method": "add_noise",
+  "model": "all",
+  "folder": "200715",
+  "collect": {
+    "sensor_type": ["pressure", "acc", "gyro"],
+    "sensor_number": {
+      "pressure" : 16,
+      "acc" : 6,
+      "gyro" : 6
+    },
+    "category": {
+      "1" : 0,
+      "2" : 1,
+      "3" : 2,
+      "4" : 3,
+      "5" : 4,
+      "6" : 5,
+      "7" : 6
+    },
+    "combine_shape": "tri",
+    "minimum_threshold" : 63,
+    "csv_columns_names" : {
+            "datasets": ["" ,"dates",
+                         "p1(L)", "p2(L)", "p3(L)", "p4(L)", "p5(L)", "p6(L)", "p7(L)", "p8(L)",
+                         "ACC_X(L)", "ACC_Y(L)", "ACC_Z(L)", "GYRO_X(L)", "GYRO_Y(L)", "GYRO_Z(L)",
+                         "p1(R)", "p2(R)", "p3(R)", "p4(R)", "p5(R)", "p6(R)", "p7(R)", "p8(R)",
+                         "ACC_X(R)", "ACC_Y(R)", "ACC_Z(R)", "GYRO_X(R)", "GYRO_Y(R)", "GYRO_Z(R)"],
+            "pressure" : ["p1(L)", "p2(L)", "p3(L)", "p4(L)", "p5(L)", "p6(L)", "p7(L)", "p8(L)",
+                         "p1(R)", "p2(R)", "p3(R)", "p4(R)", "p5(R)", "p6(R)", "p7(R)", "p8(R)"],
+            "acc" : ["ACC_X(L)", "ACC_Y(L)", "ACC_Z(L)", "ACC_X(R)", "ACC_Y(R)", "ACC_Z(R)"],
+            "gyro" : ["GYRO_X(L)", "GYRO_Y(L)", "GYRO_Z(L)", "GYRO_X(R)", "GYRO_Y(R)", "GYRO_Z(R)"],
+            "left_pressure" : ["p1(L)", "p2(L)", "p3(L)", "p4(L)", "p5(L)", "p6(L)", "p7(L)", "p8(L)"],
+            "right_pressure" : ["p1(R)", "p2(R)", "p3(R)", "p4(R)", "p5(R)", "p6(R)", "p7(R)", "p8(R)"]
+    },
+    "remover": []
+  }
+}
