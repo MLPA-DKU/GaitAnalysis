@@ -28,7 +28,7 @@ method_info = {
     "people": 'LeaveOne',
     "CrossValidation": ['7CV', 'SCV']
 }
-print("hi?")
+
 
 def get_args(arguments_parser, parameter_store):
     parameter_store.Header = arguments_parser.Header

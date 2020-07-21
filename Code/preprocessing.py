@@ -11,7 +11,7 @@ import cv2
 
 def to_categorical_unit(target, nb_class):
     categorical = np.zeros([1, int(nb_class)])
-    categorical[1, int(target)] = 1
+    categorical[0, int(target)] = 1
     return categorical
 
 
