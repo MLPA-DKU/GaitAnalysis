@@ -15,7 +15,7 @@ from Code.utils import dt_printer as dt
 from Code.result_collector import column_info, directory, DataStore
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-print("test")
+
 parser = argparse.ArgumentParser(description="Gait Analysis Project")
 parser.add_argument('--json', type=str, default="cropping_type", help='collector file')
 parser.add_argument('--Header', type=str, default="200630_type", help='output header')
