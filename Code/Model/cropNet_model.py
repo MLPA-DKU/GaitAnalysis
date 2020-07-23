@@ -62,16 +62,15 @@ class cropnet:
         for i in range(3):
             target = train[f"data_{i}"]
             for batch_time in range(batch_per_epoch):
-                temp_batch = np.zeros((self.batch_size, self.row_point, self.in_col[f"{i}"], self.channels))
-                temp_label = np.zeros((self.batch_size, nb_class))
+                temp_batch = np.zeros((batch_per_epoch, self.batch_size, self.in_col[f"{i}"]))
+                temp_label = np.zeros((batch_per_epoch, self.batch_size, nb_class))
 
                 pre = batch_time * self.batch_size
                 aft = (batch_time + 1) * self.batch_size
                 for n, batch_item in enumerate(target[pre:aft]):
                     onehot_label = to_categorical_unit(train["tag"][n], nb_class)
-
-                    temp_batch[n, :, :, :] = batch_item
-                    temp_label[n, :] = onehot_label
+                    temp_batch[batch_time, n, :] = batch_item
+                    temp_label[batch_time, n, :] = onehot_label
 
                 batch[f"data_{i}"].append(temp_batch)
                 batch["label"].append(temp_label)

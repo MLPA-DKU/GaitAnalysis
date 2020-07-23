@@ -17,7 +17,7 @@ from Code.result_collector import column_info, directory, DataStore
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser(description="Gait Analysis Project")
-parser.add_argument('--json', type=str, default="cropping_type", help='collector file')
+parser.add_argument('--json', type=str, default="create_collector", help='collector file')
 parser.add_argument('--Header', type=str, default="200630_type", help='output header')
 parser.add_argument('--batch_size', type=int, default=32, help='batch_size default=64')
 parser.add_argument('--epochs', type=int, default=20, help='epochs default=20')
@@ -57,12 +57,12 @@ def chosen_object(object_name):
         experiment(params, comb_degree=5)
     elif object_name == "create":
         create(params)
+    elif object_name == "create_v2":
+        create_v2(params)
     elif object_name == "tsne":
         tsne(params, comb_degree=1)
     elif object_name == "visualize":
         visualize(params)
-    elif object_name == "cropping":
-        cropping(params)
     elif object_name == "create_and_visualize":
         create_and_visualize(params)
     elif object_name == "custom2":
@@ -105,8 +105,6 @@ def deep_learning_experiment_configuration(param, train, test, label_info):
     config = tf.ConfigProto()
     # config.gpu_options.allow_growth = True
     for repeat in range(nb_repeat):
-        if repeat != 1:
-            continue
         # config = tf.compat.v1.ConfigProto()
 
         sess = tf.Session(config=config)
@@ -129,7 +127,7 @@ def deep_learning_experiment_configuration(param, train, test, label_info):
         elif param.datatype == "disease":
             tr_label = tartr["tag"]
             te_label = tarte["tag"]
-            nb_class = label_info[0] + 1
+            nb_class = label_info[0]
 
         cat_tr = preprocessing.to_categorical(tr_label, nb_class)
         cat_te = preprocessing.to_categorical(te_label, nb_class)
@@ -249,6 +247,41 @@ def create_configuration(param, file, nb_comb):
     resized = cc.resize_samples(param, sampled)
     combined = cc.combined_samples(resized, comb_degree=nb_comb)
     vectorized = cc.vectorized_samples(param, combined, nb_comb)
+    return [file, vectorized]
+
+
+# create
+def create_v2(param):
+    print(f"{dt()} :: Create Initialize")
+    datasets = loader.create_loader(param)
+
+    for nb_comb in range(1, 6):
+        print(f"{dt()} :: Combine Number : {nb_comb}")
+        dc = dict()
+        for key, files in datasets.items():
+            files = sorted(files)
+            param.key = key
+            class_collect = list()
+
+            for file in files:
+                if file.split('/')[-1] == '13_04.csv' or file.split('/')[-1] == '14_05.csv' and \
+                        (param.datatype == 'disease' or param.datatype == 'disease_add'):
+                    continue
+                print(file)
+                output = create_configuration_v2(param, file, nb_comb)
+                class_collect.append(output)
+            dc[key] = class_collect
+        print(f"{dt()} :: --Combine Number : {nb_comb} Save Initialize")
+        cc.save_datasets(param, dc, nb_comb)
+        print(f"{dt()} :: --Done")
+
+
+def create_configuration_v2(param, file, nb_comb):
+    df, step_index = cc.dataset_init_v2(param, file)
+    sampled = cc.get_index_sampling_v2(param, df, step_index)
+    resized = cc.resize_samples_v2(param, sampled)
+    combined = cc.combined_samples_v2(resized, comb_degree=nb_comb)
+    vectorized = cc.vectorized_samples_v2(param, combined, nb_comb)
     return [file, vectorized]
 
 
