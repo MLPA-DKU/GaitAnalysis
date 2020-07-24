@@ -1,41 +1,82 @@
-import tensorflow as tf
-import tensorflow.keras as keras
-from tensorflow.keras.models import Model
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Activation
-from tensorflow.keras.layers import Dropout
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.layers import Input
-from tensorflow.keras.layers import LSTM
-from tensorflow.keras.layers import Bidirectional
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.layers import Flatten
-from tensorflow.keras.layers import concatenate
-from tensorflow.keras.optimizers import Adam
-
-
-def get_model(input_shape, comb_degree):
-    model = Sequential()
-    hidden_cells = 64 * comb_degree
-    model.add(LSTM(hidden_cells, input_shape=input_shape, return_sequences=True, recurrent_dropout=0.2))
-    model.add(LSTM(hidden_cells))    #A second layer of LSTM
-    model.add(Flatten())
-    return model
+import keras
 
 
 # multi modal DCNN
-def lstm_network(shape_list, nb_class, comb_degree):
+def dcnn_network(shape_list, nb_class, comb_degree):
+    nb_filter = 32
+    nb_strides = 1
 
-    input1 = get_model((shape_list[0]),comb_degree)
-    input2 = get_model((shape_list[1]),comb_degree)
-    input3 = get_model((shape_list[2]),comb_degree)
+    if int(comb_degree) < 3:
+        fc_unit = 3000
+    elif int(comb_degree) == 3:
+        nb_filter = nb_filter * 2
+        fc_unit = 3000
+        nb_strides = 2
+    elif int(comb_degree) == 4:
+        nb_filter = nb_filter * 2
+        fc_unit = 5000
+        nb_strides = 2
+    elif int(comb_degree) == 5:
+        nb_filter = nb_filter * 2
+        fc_unit = 8000
+        nb_strides = 2
 
-    merged_layer = concatenate([input1.output, input2.output, input3.output])
-    dense_layer1 = Dense(256, activation="relu")(merged_layer)
-    dropout_layer = Dropout(0.7)(dense_layer1)
-    dense_layer2 = Dense(nb_class, activation="softmax")(dropout_layer)
+    # first network
+    input1 = keras.layers.Input(shape=shape_list[0])
+    input1_cnn1 = keras.layers.Conv1D(filters=nb_filter, kernel_size=20,
+                                      strides=nb_strides, activation='relu')(input1)
+    input1_batchnorm1 = keras.layers.BatchNormalization()(input1_cnn1)
 
-    model = Model(inputs=[input1.input, input2.input, input3.input], outputs=dense_layer2)
-    model.compile(loss='categorical_crossentropy', optimizer=Adam(lr=1e-3), metrics=['accuracy'])
+    input1_cnn2 = keras.layers.Conv1D(filters=nb_filter * 2, kernel_size=20,
+                                      strides=nb_strides, activation='relu')(input1_batchnorm1)
+    input1_batchnorm2 = keras.layers.BatchNormalization()(input1_cnn2)
 
+    input1_cnn3 = keras.layers.Conv1D(filters=nb_filter * 4, kernel_size=20,
+                                      strides=nb_strides, activation='relu')(input1_batchnorm2)
+    input1_batchnorm3 = keras.layers.BatchNormalization()(input1_cnn3)
+    input1_flatten = keras.layers.Flatten()(input1_batchnorm3)
+
+    # second network
+    input2 = keras.layers.Input(shape=shape_list[1])
+    input2_cnn1 = keras.layers.Conv1D(filters=nb_filter, kernel_size=20,
+                                      strides=nb_strides, activation='relu')(input2)
+    input2_batchnorm1 = keras.layers.BatchNormalization()(input2_cnn1)
+
+    input2_cnn2 = keras.layers.Conv1D(filters=nb_filter * 2, kernel_size=20,
+                                      strides=nb_strides, activation='relu')(input2_batchnorm1)
+    input2_batchnorm2 = keras.layers.BatchNormalization()(input2_cnn2)
+
+    input2_cnn3 = keras.layers.Conv1D(filters=nb_filter * 4, kernel_size=20,
+                                      strides=nb_strides, activation='relu')(input2_batchnorm2)
+    input2_batchnorm3 = keras.layers.BatchNormalization()(input2_cnn3)
+    input2_flatten = keras.layers.Flatten()(input2_batchnorm3)
+
+    # third network
+    input3 = keras.layers.Input(shape=shape_list[2])
+    input3_cnn1 = keras.layers.Conv1D(filters=nb_filter, kernel_size=20,
+                                      strides=nb_strides, activation='relu')(input3)
+    input3_batchnorm1 = keras.layers.BatchNormalization()(input3_cnn1)
+
+    input3_cnn2 = keras.layers.Conv1D(filters=nb_filter * 2, kernel_size=20,
+                                      strides=nb_strides, activation='relu')(input3_batchnorm1)
+    input3_batchnorm2 = keras.layers.BatchNormalization()(input3_cnn2)
+
+    input3_cnn3 = keras.layers.Conv1D(filters=nb_filter * 4, kernel_size=20,
+                                      strides=nb_strides, activation='relu')(input3_batchnorm2)
+    input3_batchnorm3 = keras.layers.BatchNormalization()(input3_cnn3)
+    input3_flatten = keras.layers.Flatten()(input3_batchnorm3)
+
+    # merge feature map
+    merged_layer = keras.layers.concatenate([input1_flatten, input2_flatten, input3_flatten])
+    # merged_dense1 = keras.layers.Dense(units=fc_unit, activation='relu')(merged_layer)
+    # merged_batchnorm1 = keras.layers.BatchNormalization()(merged_dense1)
+    merged_dense2 = keras.layers.Dense(units=fc_unit, activation='relu')(merged_layer)
+    # merged_dense2 = keras.layers.Dense(units=256, activation='relu')(merged_layer)
+    merged_batchnorm2 = keras.layers.BatchNormalization()(merged_dense2)
+    merged_dropout = keras.layers.Dropout(0.7)(merged_batchnorm2)
+    merged_class_layer = keras.layers.Dense(units=nb_class, activation='softmax')(merged_dropout)
+
+    model = keras.models.Model(inputs=[input1, input2, input3], output=merged_class_layer)
+    model.compile(optimizer=keras.optimizers.Adam(lr=0.0001), loss=keras.losses.categorical_crossentropy,
+                  metrics=['accuracy'])
     return model

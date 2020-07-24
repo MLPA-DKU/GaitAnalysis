@@ -17,10 +17,10 @@ from Code.result_collector import column_info, directory, DataStore
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser(description="Gait Analysis Project")
-parser.add_argument('--json', type=str, default="create_collector", help='collector file')
+parser.add_argument('--json', type=str, default="selfsim_base_type", help='collector file')
 parser.add_argument('--Header', type=str, default="200630_type", help='output header')
-parser.add_argument('--batch_size', type=int, default=32, help='batch_size default=64')
-parser.add_argument('--epochs', type=int, default=20, help='epochs default=20')
+parser.add_argument('--batch_size', type=int, default=128, help='batch_size default=64')
+parser.add_argument('--epochs', type=int, default=400, help='epochs default=20')
 args = parser.parse_args()
 
 method_info = {
@@ -86,6 +86,9 @@ def experiment(param, comb_degree=5):
         if param.model_name in model_compactor.model_info['dl']:
             deep_learning_experiment_configuration(param, train, test, [nb_class, nb_people])
             ds.save_result(param)
+        if param.model_name in model_compactor.model_info['c_dl']:
+            deep_learning_experiment_custom(param, train, test, [nb_class, nb_people])
+            ds.save_result(param)
         elif param.model_name in model_compactor.model_info['ml']:
             machine_learning_experiment_configuration(param, train, test, [nb_class, nb_people])
 
@@ -146,6 +149,122 @@ def deep_learning_experiment_configuration(param, train, test, label_info):
 
         model_score = model.evaluate(x=te_data, y=cat_te, verbose=0)
 
+
+        print(f"{dt()} :: Test Loss :{model_score[0]}")
+        print(f"{dt()} :: Test Accuracy :{model_score[1]}")
+
+        if repeat == 0:
+            tracking = [dt(), param.method, param.model_name, param.nb_combine, repeat, model_score[0], model_score[1]]
+            ds.stock_result(tracking)
+        else:
+            tracking = [dt(), repeat, model_score[0], model_score[1]]
+            ds.stock_result(tracking)
+
+        ds.save_result_obo(param, tracking)
+
+        model_result = None
+        model_score = None
+        tracking = None
+        tr_data = None
+        te_date = None
+        K.clear_session()
+        tf.keras.backend.clear_session()
+        sess.close()
+
+
+def deep_learning_experiment_custom(param, train, test, label_info):
+    nb_class = label_info[0]
+    nb_people = label_info[1]
+    param.nb_modal = 3
+
+    if param.method == method_info['people']:
+        nb_repeat = nb_people
+    elif param.method in method_info['repeat']:
+        nb_repeat = 20
+    elif param.method in method_info["CrossValidation"]:
+        nb_repeat = param.collect["CrossValidation"] * 5
+
+    # config = tf.ConfigProto()
+    # config.gpu_options.allow_growth = True
+    for repeat in range(nb_repeat):
+
+        print(f"{dt()} :: {repeat+1}/{nb_repeat} experiment progress")
+
+        tartr = train[repeat]
+        tarte = test[repeat]
+
+        tr_data = [tartr["data_0"], tartr["data_1"], tartr["data_2"]]
+        te_data = [tarte["data_0"], tarte["data_1"], tarte["data_2"]]
+        if param.datatype == "type":
+            tr_label = tartr["tag"] - 1
+            te_label = tarte["tag"] - 1
+            nb_class = label_info[0]
+        elif param.datatype == "disease":
+            tr_label = tartr["tag"]
+            te_label = tarte["tag"]
+            nb_class = label_info[0]
+
+        cat_tr = preprocessing.to_categorical(tr_label, nb_class)
+        cat_te = preprocessing.to_categorical(te_label, nb_class)
+
+        model = model_compactor.model_setting(param, train[repeat], test[repeat], [nb_class, nb_people])
+        print(f"{dt()} :: MODEL={param.model_name}, METHOD={param.method}")
+
+        log_dir = f"../Log/{param.model_name}_{param.method}"
+        # log_dir = f"/home/blackcow/mlpa/workspace/gait-rework/gait-rework/Log/{param.model_name}_{param.method}"
+
+        # tb_hist = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=0, write_graph=True, write_images=True)
+
+        # # model.summary()
+        # model_result = model.fit(x=tr_data, y=cat_tr, epochs=param.epochs, batch_size=param.batch_size
+        #                          , validation_data=(te_data, cat_te), verbose=2, callbacks=[tb_hist])
+
+        # model_score = model.evaluate(x=te_data, y=cat_te, verbose=0)
+
+        while True:
+            x_train1 = list()
+            x_train2 = list()
+            x_train3 = list()
+            y_train = list()
+            print(f"total batch : {len(tr_data[0]) // param.batch_size}")
+            for i in range(len(tr_data[0]) // param.batch_size):
+                x_batch1 = tr_data[0][i*param.batch_size: (i+1)*param.batch_size]
+                x_batch2 = tr_data[1][i*param.batch_size: (i+1)*param.batch_size]
+                x_batch3 = tr_data[2][i*param.batch_size: (i+1)*param.batch_size]
+
+                x_train1.append(x_batch1)
+                x_train2.append(x_batch2)
+                x_train3.append(x_batch3)
+                y_train.append(cat_tr[i*param.batch_size: (i+1)*param.batch_size])
+
+            model.summary()
+            optimizer = tf.optimizers.Adam(lr=0.0001)
+            for epoch in range(param.epochs):
+
+                for step, (x_batch1, x_batch2, x_batch3, y_batch) in enumerate(zip(x_train1, x_train2, x_train3, y_train)):
+                    # predicted = model.predict([x_batch1, x_batch2, x_batch3])
+
+                    with tf.GradientTape() as tape:
+                        logits = model([x_batch1, x_batch2, x_batch3])
+
+                        loss_val1 = tf.losses.categorical_crossentropy(y_batch, logits[0])
+                        loss_val2 = tf.losses.categorical_crossentropy(y_batch, logits[1])
+                        loss_val3 = tf.losses.categorical_crossentropy(y_batch, logits[2])
+
+                        true_loss = tf.math.divide(tf.math.add(loss_val1 * 0.3, loss_val2 * 0.3, loss_val3 * 0.3), 3)
+                    # gen = model.train_on_batch(, [y_batch, y_batch, y_batch])
+                    # print(f'train_loss : {gen}')
+
+                    grads = tape.gradient(true_loss, model.trainable_variables)
+                    optimizer.apply_gradients((grads, var) for (grads, var) in zip(grads, model.trainable_variables) if grads is not None)
+
+                    count = 0
+                    for loss_index, loss in enumerate(logits):
+                        for c in range(len(loss)):
+                            if np.argmax(y_batch[c]) == np.argmax(loss.numpy()[c]):
+                                count += 1
+                    train_loss = count / len(y_batch)
+                    print(f'[step : {step}/{len(x_train1)}] [epochs : {epoch}/{param.epochs}]train loss : {train_loss}')
 
         print(f"{dt()} :: Test Loss :{model_score[0]}")
         print(f"{dt()} :: Test Accuracy :{model_score[1]}")

@@ -7,7 +7,7 @@ import Code.preprocessing as pp
 method_info = {
     'specific': ['cropping'],
     '4columns': ['BasicNet', 'ResNet', 'VGG'],
-    '3columns': ['base', 'lstm', 'bi-lstm', 'lstm_attention', 'cnn_lstm'],
+    '3columns': ['base', 'lstm', 'bi-lstm', 'lstm_attention', 'cnn_lstm', 'similarity'],
     '2columns': ['lgbm']
 }
 

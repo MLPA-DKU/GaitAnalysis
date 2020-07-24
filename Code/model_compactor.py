@@ -11,9 +11,11 @@ from Code.Model import cnn_lstm_model as clstm
 from Code.Model import bidirectinal_lstm_model as bilstm
 from Code.Model import lightGBM_model as lgbm
 from Code.Model import cropNet_model as crop
+from Code.Model import self_similarity as ss
 
 model_info = {
-    'dl': ['BasicNet', 'ResNet', 'VGG', 'pVGG', 'base', 'lstm', 'bi-lstm', 'lstm_attention', 'cnn_lstm'],
+    'dl': ['BasicNet', 'ResNet', 'VGG', 'pVGG', 'base', 'lstm', 'bi-lstm', 'cnn_lstm'],
+    'c_dl': ['similarity', 'lstm_attention'],
     'ml': ['lgbm']
 }
 
@@ -83,4 +85,10 @@ def model_setting(param, train, test, label_info):
         model = lgbm.lgbm_construct(param, dataset=[train, test], label=[nb_class, nb_people])
     elif model == 'cropping':
         model = crop.cropping_network(dataset=[train, test], nb_class=nb_class)
+    elif model == 'similarity':
+        shape_list = list()
+        for i in range(nb_modal):
+            _, row, col = train[f"data_{i}"].shape
+            shape_list.append((row, col))
+        model = ss.self_similarity_network(shape_list=shape_list, comb_degree=param.nb_combine)
     return model
