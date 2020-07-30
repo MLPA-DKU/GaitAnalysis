@@ -15,7 +15,8 @@ from tensorflow.keras.optimizers import Adam
 
 from tensorflow.python.framework import ops
 
-def modified_cnn_block(comb_degree, input_layer):
+
+def modified_cnn_block(comb_degree, input_layer, sensor_index):
     nb_filter = 32
     nb_strides = 1
 
@@ -48,7 +49,7 @@ def modified_cnn_block(comb_degree, input_layer):
     # dense_layer = keras.layers.Dense(units=256, activation='relu')(input1_flatten)
     # dense_layer = keras.layers.Dense(units=64, activation='relu')(dense_layer)
     permute_layer = keras.layers.Permute((2, 1))(input1_batchnorm3)
-    similarity_layer = keras.layers.Dot(axes=(1, 2))([input1_batchnorm3, permute_layer])
+    similarity_layer = keras.layers.Dot(axes=(1, 2), name=f"similarity_block{sensor_index}")([input1_batchnorm3, permute_layer])
 
     similarity_layer = keras.layers.Conv1D(filters=nb_filter * 2, kernel_size=20,
                                            strides=1, activation='relu')(similarity_layer)
@@ -66,9 +67,9 @@ def self_similarity_network(shape_list, comb_degree):
     input2 = keras.layers.Input(shape=shape_list[1])
     input3 = keras.layers.Input(shape=shape_list[2])
 
-    input1_cnn = modified_cnn_block(comb_degree, input1)
-    input2_cnn = modified_cnn_block(comb_degree, input2)
-    input3_cnn = modified_cnn_block(comb_degree, input3)
+    input1_cnn = modified_cnn_block(comb_degree, input1, sensor_index=1)
+    input2_cnn = modified_cnn_block(comb_degree, input2, sensor_index=2)
+    input3_cnn = modified_cnn_block(comb_degree, input3, sensor_index=3)
 
     input1_per = keras.layers.Permute((2, 1))(input1_cnn)
     input2_per = keras.layers.Permute((2, 1))(input2_cnn)
@@ -80,15 +81,18 @@ def self_similarity_network(shape_list, comb_degree):
 
     pa = keras.layers.Flatten()(pa)
     pa = keras.layers.Dense(units=256, activation='relu')(pa)
-    pa = keras.layers.Dense(units=7, activation='softmax')(pa)
+    pa = keras.layers.Dense(units=7)(pa)
+    pa = tf.nn.softmax_cross_entropy_with_logits(pa)
 
     pg = keras.layers.Flatten()(pg)
     pg = keras.layers.Dense(units=256, activation='relu')(pg)
-    pg = keras.layers.Dense(units=7, activation='softmax')(pg)
+    pg = keras.layers.Dense(units=7)(pg)
+    pg = tf.nn.softmax_cross_entropy_with_logits(pg)
 
     ag = keras.layers.Flatten()(ag)
     ag = keras.layers.Dense(units=256, activation='relu')(ag)
-    ag = keras.layers.Dense(units=7, activation='softmax')(ag)
+    ag = keras.layers.Dense(units=7)(ag)
+    ag = tf.nn.softmax_cross_entropy_with_logits(ag)
 
     # summation = keras.layers.Add()([pa, pg, ag])
     # summation = keras.layers.Lambda(lambda inputs: inputs[0] / inputs[1])([summation, 3.0])  # ensemble

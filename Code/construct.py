@@ -17,7 +17,7 @@ from Code.result_collector import column_info, directory, DataStore
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser(description="Gait Analysis Project")
-parser.add_argument('--json', type=str, default="selfsim_base_type", help='collector file')
+parser.add_argument('--json', type=str, default="create_collector", help='collector file')
 parser.add_argument('--Header', type=str, default="200630_type", help='output header')
 parser.add_argument('--batch_size', type=int, default=128, help='batch_size default=64')
 parser.add_argument('--epochs', type=int, default=400, help='epochs default=20')
@@ -69,6 +69,8 @@ def chosen_object(object_name):
         custom2(params, comb_degree=3)
     elif object_name == "cropping":
         cropping(params)
+    elif object_name == "convert":
+        convert(params)
 
 
 # experiment
@@ -225,7 +227,9 @@ def deep_learning_experiment_custom(param, train, test, label_info):
             x_train1 = list()
             x_train2 = list()
             x_train3 = list()
+
             y_train = list()
+
             print(f"total batch : {len(tr_data[0]) // param.batch_size}")
             for i in range(len(tr_data[0]) // param.batch_size):
                 x_batch1 = tr_data[0][i*param.batch_size: (i+1)*param.batch_size]
@@ -239,6 +243,14 @@ def deep_learning_experiment_custom(param, train, test, label_info):
 
             model.summary()
             optimizer = tf.optimizers.Adam(lr=0.0001)
+            loss_object = tf.keras.losses.CategoricalCrossentropy()
+            fin_loss_object = tf.keras.losses.CategoricalCrossentropy()
+
+            train_loss = tf.keras.metrics.Mean(name='train_loss')
+            train_accuracy = tf.keras.metrics.CategoricalAccuracy(name='train_accuracy')
+
+            test_loss = tf.keras.metrics.Mean(name='test_loss')
+            test_accuracy = tf.keras.metrics.CategoricalAccuracy(name='test_accuracy')
             for epoch in range(param.epochs):
 
                 for step, (x_batch1, x_batch2, x_batch3, y_batch) in enumerate(zip(x_train1, x_train2, x_train3, y_train)):
@@ -247,27 +259,25 @@ def deep_learning_experiment_custom(param, train, test, label_info):
                     with tf.GradientTape() as tape:
                         logits = model([x_batch1, x_batch2, x_batch3])
 
-                        loss_val1 = tf.losses.categorical_crossentropy(y_batch, logits[0])
-                        loss_val2 = tf.losses.categorical_crossentropy(y_batch, logits[1])
-                        loss_val3 = tf.losses.categorical_crossentropy(y_batch, logits[2])
+                        loss_val1 = loss_object(y_batch, logits[0])
+                        loss_val2 = loss_object(y_batch, logits[1])
+                        loss_val3 = loss_object(y_batch, logits[2])
 
-                        true_loss = tf.math.divide(tf.math.add(loss_val1 * 0.3, loss_val2 * 0.3, loss_val3 * 0.3), 3)
+                        true_loss = tf.math.add(logits[0]*0.3, logits[1]*0.3, logits[2]*0.3)
+                        true_loss = fin_loss_object(y_batch, true_loss)
                     # gen = model.train_on_batch(, [y_batch, y_batch, y_batch])
                     # print(f'train_loss : {gen}')
 
                     grads = tape.gradient(true_loss, model.trainable_variables)
-                    optimizer.apply_gradients((grads, var) for (grads, var) in zip(grads, model.trainable_variables) if grads is not None)
+                    optimizer.apply_gradients((grads, var) for (grads, var)
+                                              in zip(grads, model.trainable_variables) if grads is not None)
 
-                    count = 0
-                    for loss_index, loss in enumerate(logits):
-                        for c in range(len(loss)):
-                            if np.argmax(y_batch[c]) == np.argmax(loss.numpy()[c]):
-                                count += 1
-                    train_loss = count / len(y_batch)
-                    print(f'[step : {step}/{len(x_train1)}] [epochs : {epoch}/{param.epochs}]train loss : {train_loss}')
-
-        print(f"{dt()} :: Test Loss :{model_score[0]}")
-        print(f"{dt()} :: Test Accuracy :{model_score[1]}")
+                    train_loss(true_loss)
+                    train_accuracy(y_batch, logits[0])
+                    train_accuracy(y_batch, logits[1])
+                    train_accuracy(y_batch, logits[2])
+                    print(f'[step : {step}/{len(x_train1)}] [epochs : {epoch}/{param.epochs}]'
+                          f'train loss : {train_loss.results}, train_accuracy : {train_accuracy.result()*100}')
 
         if repeat == 0:
             tracking = [dt(), param.method, param.model_name, param.nb_combine, repeat, model_score[0], model_score[1]]
@@ -481,6 +491,11 @@ def visualize(param):
 
 def visualize_configuration():
     NotImplemented
+
+
+def convert(param):
+    print(f"{dt()} :: Convert Initialize")
+
 
 
 if __name__ == "__main__":

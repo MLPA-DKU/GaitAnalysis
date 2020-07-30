@@ -4,6 +4,7 @@ import pandas as pd
 import skimage.transform
 import cv2
 import datetime
+from scipy.io import savemat
 from Code.utils import dt_printer as dt
 
 
@@ -220,6 +221,12 @@ def save_datasets(param, data_collect, nb_comb):
             np.save(os.path.join(folder_dir, "pressure_dataset.npy"), pressure_data)
             np.save(os.path.join(folder_dir, "acc_dataset.npy"), acc_data)
             np.save(os.path.join(folder_dir, "gyro_dataset.npy"), gyro_data)
+        elif param.model_name == "mat":
+            matdict = dict()
+            matdict['pressure'] = pressure_data
+            matdict['acc'] = acc_data
+            matdict['gyro'] = gyro_data
+            savemat(os.path.join(folder_dir, "matfiles.mat"), matdict)
         elif param.model_name == "all":
             file_name = os.path.join(folder_dir, "pressure_dataset.dat")
             np.savetxt(fname=file_name, X=pressure_data)
@@ -231,6 +238,12 @@ def save_datasets(param, data_collect, nb_comb):
             np.save(os.path.join(folder_dir, "pressure_dataset.npy"), pressure_data)
             np.save(os.path.join(folder_dir, "acc_dataset.npy"), acc_data)
             np.save(os.path.join(folder_dir, "gyro_dataset.npy"), gyro_data)
+
+            matdict = dict()
+            matdict['pressure'] = pressure_data
+            matdict['acc'] = acc_data
+            matdict['gyro'] = gyro_data
+            savemat(os.path.join(folder_dir, "matfiles.mat"), matdict)
 
         f = open(os.path.join(save_dir, 'keymap.txt'), 'w')
         f.write(str(keymap))
@@ -554,6 +567,12 @@ def save_datasets_v2(param, data_collect, nb_comb):
             np.save(os.path.join(folder_dir, "pressure_dataset.npy"), pressure_data)
             np.save(os.path.join(folder_dir, "acc_dataset.npy"), acc_data)
             np.save(os.path.join(folder_dir, "gyro_dataset.npy"), gyro_data)
+        elif param.model_name == "mat":
+            matdict = dict()
+            matdict['pressure'] = pressure_data
+            matdict['acc'] = acc_data
+            matdict['gyro'] = gyro_data
+            savemat(os.path.join(folder_dir, "matfiles.npy"), matdict)
         elif param.model_name == "all":
             file_name = os.path.join(folder_dir, "pressure_dataset.dat")
             np.savetxt(fname=file_name, X=pressure_data)
@@ -565,6 +584,12 @@ def save_datasets_v2(param, data_collect, nb_comb):
             np.save(os.path.join(folder_dir, "pressure_dataset.npy"), pressure_data)
             np.save(os.path.join(folder_dir, "acc_dataset.npy"), acc_data)
             np.save(os.path.join(folder_dir, "gyro_dataset.npy"), gyro_data)
+
+            matdict = dict()
+            matdict['pressure'] = pressure_data
+            matdict['acc'] = acc_data
+            matdict['gyro'] = gyro_data
+            savemat(os.path.join(folder_dir, "matfiles.mat"), matdict)
 
         f = open(os.path.join(save_dir, 'keymap.txt'), 'w')
         f.write(str(keymap))
