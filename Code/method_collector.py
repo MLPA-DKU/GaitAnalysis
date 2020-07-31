@@ -5,7 +5,7 @@ import time
 import Code.preprocessing as pp
 
 method_info = {
-    'specific': ['cropping'],
+    'specific': ['cropping', 'convert'],
     '4columns': ['BasicNet', 'ResNet', 'VGG'],
     '3columns': ['base', 'lstm', 'bi-lstm', 'lstm_attention', 'cnn_lstm', 'similarity'],
     '2columns': ['lgbm']
@@ -84,41 +84,12 @@ def method_leaveone(param, comb, datasets):
     BaseDivideProcess(param.method, param.model_name, dataset=datasets)
     if param.method is "cropping":
         divide_process = LeaveOneDP_ns(param.method, param.model_name, dataset=datasets, rsub=None)
+    elif param.method is "convert":
+        divide_process = LeaveOneDP_ns(param.method, param.model_name, dataset=datasets, rsub=None)
     else:
         divide_process = LeaveOneDP(param.method, param.model_name, dataset=datasets, rsub=None)
     if param.datatype == "disease":
         divide_process.nb_class += 1
-    sampling_data = divide_process.sampling()
-
-    sample_train = sampling_data["train"]
-    sample_test = sampling_data["test"]
-
-    for repeat in range(divide_process.nb_people):
-        train = sample_train[repeat]
-        test = sample_test[repeat]
-
-        for nb in range(3):
-            train[f"data_{nb}"] = divide_process.convert(data=train[f"data_{nb}"],
-                                                         mt=param.collect["minimum_threshold"], comb=comb)
-            test[f"data_{nb}"] = divide_process.convert(data=test[f"data_{nb}"],
-                                                        mt=param.collect["minimum_threshold"], comb=comb)
-
-        sample_train[repeat] = train
-        sample_test[repeat] = test
-
-    nb_tag = divide_process.nb_class
-    nb_people = divide_process.nb_people
-
-    return sample_train, sample_test, nb_tag, nb_people
-
-
-def method_sleaveone(param, comb, datasets):
-    BaseDivideProcess(param.method, param.model_name, dataset=datasets)
-    if param.datatype == "disease":
-        BaseDivideProcess.nb_class += 1
-    divide_process = LeaveOneDP(param.method, param.model_name, dataset=datasets
-                                , rsub=None)
-
     sampling_data = divide_process.sampling()
 
     sample_train = sampling_data["train"]
@@ -182,6 +153,35 @@ def method_mdpi(param, comb, datasets):
                             , rsub=None)
 
     sampling_data = divide_process.sampling()
+
+    sample_train = sampling_data["train"]
+    sample_test = sampling_data["test"]
+
+    for repeat in range(20):
+        train = sample_train[repeat]
+        test = sample_test[repeat]
+
+        for nb in range(3):
+            train[f"data_{nb}"] = divide_process.convert(data=train[f"data_{nb}"],
+                                                         mt=param.collect["minimum_threshold"], comb=comb)
+            test[f"data_{nb}"] = divide_process.convert(data=test[f"data_{nb}"],
+                                                        mt=param.collect["minimum_threshold"], comb=comb)
+
+        sample_train[repeat] = train
+        sample_test[repeat] = test
+
+    nb_tag = divide_process.nb_class
+    nb_people = divide_process.nb_people
+
+    return sample_train, sample_test, nb_tag, nb_people
+
+
+def method_smdpi(param, comb, datasets):
+    BaseDivideProcess(param.method, param.model_name, dataset=datasets)
+    divide_process = mdpiDP(param.method, param.model_name, dataset=datasets
+                            , rsub=None)
+
+    sampling_data = divide_process.sampling(s1=param.collect["select"][0], s2=param.collect["select"][1])
 
     sample_train = sampling_data["train"]
     sample_test = sampling_data["test"]
@@ -349,6 +349,7 @@ class BaseDivideProcess:
         # used model name
         self.model_name = model_name
 
+        self.dataset = dataset
         self.plabel = data1[:, -2]
         self.tlabel = data1[:, -1]
 
@@ -672,6 +673,228 @@ class LeaveOneDP_ns(BaseDivideProcess):
 
 
 # LeaveOne sampling Class
+class LeaveOneDP(BaseDivideProcess):
+    """
+        LeaveOne sampling
+    """
+    def __init__(self, mode, model_name, dataset, rsub):
+        super().__init__(mode, model_name, dataset)
+        print(f"{datetime.datetime.now()} :: Divide Process : {self.mode}")
+
+    def sampling(self):
+        total_dataset = dict()
+        total_dataset["train"] = list()
+        total_dataset["test"] = list()
+
+        for peo_target in range(self.nb_people):
+            train_dict = dict()
+            test_dict = dict()
+
+            dataset_list = list()
+            train_list = list()
+
+            find_idx = []
+            count_idx = 0
+            drow, _ = self.data1.shape
+
+            for idx in range(drow):
+                if self.plabel[idx] == peo_target:
+                    find_idx.append(idx)
+                    count_idx += 1
+
+            for dataset in [self.data1, self.data2, self.data3]:
+                target = dataset[find_idx[0]:find_idx[-1] + 1, :]
+
+                if find_idx[0] == 0:
+                    train = dataset[find_idx[-1] + 1:, :]
+                elif find_idx[0] != 0 and find_idx[-1] + 1 != drow:
+                    temp1 = dataset[:find_idx[0], :]
+                    temp2 = dataset[find_idx[-1] + 1:, :]
+                    train = np.vstack([temp1, temp2])
+                elif find_idx[-1] + 1 == drow:
+                    train = dataset[:find_idx[-1] + 1, :]
+
+                dataset_list.append(target)
+                train_list.append(train)
+
+            targetp = self.plabel[find_idx[0]:find_idx[-1] + 1]
+            targetc = self.tlabel[find_idx[0]:find_idx[-1] + 1]
+
+            if find_idx[0] == 0:
+                trainp = self.plabel[find_idx[-1] + 1:]
+                trainc = self.tlabel[find_idx[-1] + 1:]
+            elif find_idx[0] != 0 and find_idx[-1] + 1 != drow:
+                temp1 = self.plabel[:find_idx[0]]
+                temp2 = self.plabel[find_idx[-1] + 1:]
+                trainp = np.concatenate([temp1, temp2])
+
+                temp1 = self.tlabel[:find_idx[0]]
+                temp2 = self.tlabel[find_idx[-1] + 1:]
+                trainc = np.concatenate([temp1, temp2])
+            elif find_idx[-1] + 1 == drow:
+                trainp = self.plabel[:find_idx[-1] + 1]
+                trainc = self.tlabel[:find_idx[-1] + 1]
+
+            target_indexes, _ = dataset_list[0].shape
+            train_indexes, _ = train_list[0].shape
+            random_list1 = sample(range(target_indexes), target_indexes)
+            random_list2 = sample(range(train_indexes), train_indexes)
+
+            for i, dataset in enumerate(dataset_list):
+                test_dict[f"data_{i}"] = dataset[random_list1]
+            test_dict["people"] = targetp[random_list1]
+            test_dict["tag"] = targetc[random_list1]
+
+            for i, dataset in enumerate(train_list):
+                train_dict[f"data_{i}"] = dataset[random_list2]
+            train_dict["people"] = trainp[random_list2]
+            train_dict["tag"] = trainc[random_list2]
+
+            total_dataset["train"].append(train_dict)
+            total_dataset["test"].append(test_dict)
+
+        return total_dataset
+
+
+# LeaveOne sampling Class
+class LeaveOneDP_select(BaseDivideProcess):
+    """
+        LeaveOne sampling
+    """
+    def __init__(self, mode, model_name, dataset, rsub):
+        super().__init__(mode, model_name, dataset)
+        print(f"{datetime.datetime.now()} :: Divide Process : {self.mode}")
+
+    def sampling(self):
+        total_dataset = dict()
+        total_dataset["train"] = list()
+        total_dataset["test"] = list()
+
+        train_dict = dict()
+        test_dict = dict()
+
+        class_collect = dict()
+        for target_class in range(self.nb_class):
+
+            # per label collect
+            data1 = self.dataset[0][target_class == self.dataset[0][:, -1]]
+            data2 = self.dataset[1][target_class == self.dataset[0][:, -1]]
+            data3 = self.dataset[2][target_class == self.dataset[0][:, -1]]
+
+            per_people = list()
+            for peo_target in range(self.nb_people):
+
+                find_idx = []
+                count_idx = 0
+                drow, _ = data1.shape
+
+                for idx in range(drow):
+                    if data1[idx, -2] == peo_target:
+                        find_idx.append(idx)
+                        count_idx += 1
+
+                if len(find_idx) == 0:
+                    continue
+
+                dataset_list = list()
+                for dataset in [data1, data2, data3]:
+                    target = dataset[find_idx[0]:find_idx[-1] + 1, :]
+                    dataset_list.append(target)
+
+                per_people.append(dataset_list)
+
+            class_collect[target_class] = per_people
+
+        c1 = len(class_collect[0])
+        c2 = len(class_collect[1])
+        c3 = len(class_collect[2])
+
+        randc1 = sample(range(c1), c1)
+        randc2 = sample(range(c2), c2)
+        randc3 = sample(range(c3), c3)
+        c1_data = class_collect[0][randc1]
+        c2_data = class_collect[1][randc2]
+        c3_data = class_collect[2][randc3]
+
+        min_value = min([c1, c2, c3])
+        for idx in range(min_value):
+            c1_data[idx]
+            c2_data[idx]
+            c3_data[idx]
+
+
+
+        for peo_target in range(self.nb_people):
+            train_dict = dict()
+            test_dict = dict()
+
+            dataset_list = list()
+            train_list = list()
+
+            find_idx = []
+            count_idx = 0
+            drow, _ = self.data1.shape
+
+            for idx in range(drow):
+                if self.plabel[idx] == peo_target:
+                    find_idx.append(idx)
+                    count_idx += 1
+
+            for dataset in [self.data1, self.data2, self.data3]:
+                target = dataset[find_idx[0]:find_idx[-1] + 1, :]
+
+                if find_idx[0] == 0:
+                    train = dataset[find_idx[-1] + 1:, :]
+                elif find_idx[0] != 0 and find_idx[-1] + 1 != drow:
+                    temp1 = dataset[:find_idx[0], :]
+                    temp2 = dataset[find_idx[-1] + 1:, :]
+                    train = np.vstack([temp1, temp2])
+                elif find_idx[-1] + 1 == drow:
+                    train = dataset[:find_idx[-1] + 1, :]
+
+                dataset_list.append(target)
+                train_list.append(train)
+
+            targetp = self.plabel[find_idx[0]:find_idx[-1] + 1]
+            targetc = self.tlabel[find_idx[0]:find_idx[-1] + 1]
+
+            if find_idx[0] == 0:
+                trainp = self.plabel[find_idx[-1] + 1:]
+                trainc = self.tlabel[find_idx[-1] + 1:]
+            elif find_idx[0] != 0 and find_idx[-1] + 1 != drow:
+                temp1 = self.plabel[:find_idx[0]]
+                temp2 = self.plabel[find_idx[-1] + 1:]
+                trainp = np.concatenate([temp1, temp2])
+
+                temp1 = self.tlabel[:find_idx[0]]
+                temp2 = self.tlabel[find_idx[-1] + 1:]
+                trainc = np.concatenate([temp1, temp2])
+            elif find_idx[-1] + 1 == drow:
+                trainp = self.plabel[:find_idx[-1] + 1]
+                trainc = self.tlabel[:find_idx[-1] + 1]
+
+            target_indexes, _ = dataset_list[0].shape
+            train_indexes, _ = train_list[0].shape
+            random_list1 = sample(range(target_indexes), target_indexes)
+            random_list2 = sample(range(train_indexes), train_indexes)
+
+            for i, dataset in enumerate(dataset_list):
+                test_dict[f"data_{i}"] = dataset[random_list1]
+            test_dict["people"] = targetp[random_list1]
+            test_dict["tag"] = targetc[random_list1]
+
+            for i, dataset in enumerate(train_list):
+                train_dict[f"data_{i}"] = dataset[random_list2]
+            train_dict["people"] = trainp[random_list2]
+            train_dict["tag"] = trainc[random_list2]
+
+            total_dataset["train"].append(train_dict)
+            total_dataset["test"].append(test_dict)
+
+        return total_dataset
+
+
+# LeaveOne sampling Class
 class mdpiDP(BaseDivideProcess):
     """
         mdpi sampling
@@ -680,8 +903,7 @@ class mdpiDP(BaseDivideProcess):
         super().__init__(mode, model_name, dataset)
         print(f"{datetime.datetime.now()} :: Divide Process : {self.mode}")
 
-    def sampling(self):
-
+    def sampling(self, s1=3, s2=50):
         total_dataset = dict()
         total_dataset["train"] = list()
         total_dataset["test"] = list()
@@ -734,22 +956,40 @@ class mdpiDP(BaseDivideProcess):
                     sec_targetp = sec_targetp[random_list]
                     sec_targetc = sec_targetc[random_list]
 
-                    if people_target == 0:
-                        for i, dataset in enumerate(class_list):
-                            train_dict[f"data_{i}"] = dataset[:3, :]
-                            test_dict[f"data_{i}"] = dataset[3:50, :]
-                        train_dict["people"] = sec_targetp[:3]
-                        train_dict["tag"] = sec_targetc[:3]
-                        test_dict["people"] = sec_targetp[3:50]
-                        test_dict["tag"] = sec_targetc[3:50]
+                    if s2 != -1:
+                        if people_target == 0:
+                            for i, dataset in enumerate(class_list):
+                                train_dict[f"data_{i}"] = dataset[:s1, :]
+                                test_dict[f"data_{i}"] = dataset[s1:s2, :]
+                            train_dict["people"] = sec_targetp[:s1]
+                            train_dict["tag"] = sec_targetc[:s1]
+                            test_dict["people"] = sec_targetp[s1:s2]
+                            test_dict["tag"] = sec_targetc[s1:s2]
+                        else:
+                            for i, dataset in enumerate(class_list):
+                                train_dict[f"data_{i}"] = np.vstack([train_dict[f"data_{i}"], dataset[:s1, :]])
+                                test_dict[f"data_{i}"] = np.vstack([test_dict[f"data_{i}"], dataset[s1:s2, :]])
+                            train_dict["people"] = np.concatenate([train_dict["people"], sec_targetp[:s1]])
+                            train_dict["tag"] = np.concatenate([train_dict["tag"], sec_targetc[:s1]])
+                            test_dict["people"] = np.concatenate([test_dict["people"], sec_targetp[s1:s2]])
+                            test_dict["tag"] = np.concatenate([test_dict["tag"], sec_targetc[s1:s2]])
                     else:
-                        for i, dataset in enumerate(class_list):
-                            train_dict[f"data_{i}"] = np.vstack([train_dict[f"data_{i}"], dataset[:3, :]])
-                            test_dict[f"data_{i}"] = np.vstack([test_dict[f"data_{i}"], dataset[3:50, :]])
-                        train_dict["people"] = np.concatenate([train_dict["people"], sec_targetp[:3]])
-                        train_dict["tag"] = np.concatenate([train_dict["tag"], sec_targetc[:3]])
-                        test_dict["people"] = np.concatenate([test_dict["people"], sec_targetp[3:50]])
-                        test_dict["tag"] = np.concatenate([test_dict["tag"], sec_targetc[3:50]])
+                        if people_target == 0:
+                            for i, dataset in enumerate(class_list):
+                                train_dict[f"data_{i}"] = dataset[:s1, :]
+                                test_dict[f"data_{i}"] = dataset[s1:, :]
+                            train_dict["people"] = sec_targetp[:s1]
+                            train_dict["tag"] = sec_targetc[:s1]
+                            test_dict["people"] = sec_targetp[s1:]
+                            test_dict["tag"] = sec_targetc[s1:]
+                        else:
+                            for i, dataset in enumerate(class_list):
+                                train_dict[f"data_{i}"] = np.vstack([train_dict[f"data_{i}"], dataset[:s1, :]])
+                                test_dict[f"data_{i}"] = np.vstack([test_dict[f"data_{i}"], dataset[s1:, :]])
+                            train_dict["people"] = np.concatenate([train_dict["people"], sec_targetp[:s1]])
+                            train_dict["tag"] = np.concatenate([train_dict["tag"], sec_targetc[:s1]])
+                            test_dict["people"] = np.concatenate([test_dict["people"], sec_targetp[s1:]])
+                            test_dict["tag"] = np.concatenate([test_dict["tag"], sec_targetc[s1:]])
 
             other_samples, _ = train_dict["data_0"].shape
             random_list = sample(range(other_samples), other_samples)

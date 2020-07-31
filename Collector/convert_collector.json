@@ -1,9 +1,9 @@
 {
-  "object" : "create_and_visualize",
+  "object" : "convert",
   "dataset" : "disease",
-  "method": "no_noise",
-  "model": "all",
-  "folder": "200729_disease",
+  "method": "smdpi",
+  "model": "convert",
+  "folder": "200730_disease",
   "collect": {
     "sensor_type": ["pressure", "acc", "gyro"],
     "sensor_number": {
@@ -31,6 +31,7 @@
             "left_pressure" : ["p1(L)", "p2(L)", "p3(L)", "p4(L)", "p5(L)", "p6(L)", "p7(L)", "p8(L)"],
             "right_pressure" : ["p1(R)", "p2(R)", "p3(R)", "p4(R)", "p5(R)", "p6(R)", "p7(R)", "p8(R)"]
     },
-    "remover": []
+    "remover": [],
+    "select" : [10, -1]
   }
 }

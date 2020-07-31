@@ -68,6 +68,8 @@ def method_collect(param, comb, datasets):
         return mc.method_fa_leaveone(param, comb, datasets)
     elif param.method == "mdpi":
         return mc.method_mdpi(param, comb, datasets)
+    elif param.method == "smdpi":
+        return mc.method_smdpi(param, comb, datasets)
     elif param.method == "dhalf":
         return mc.method_dhalf(param, comb, datasets)
     elif param.method == "half":

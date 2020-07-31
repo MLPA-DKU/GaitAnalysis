@@ -5,6 +5,7 @@ import time
 import datetime
 
 import numpy as np
+from scipy.io import savemat
 import tensorflow as tf
 from keras.backend import set_session
 from keras import backend as K
@@ -17,16 +18,17 @@ from Code.result_collector import column_info, directory, DataStore
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser(description="Gait Analysis Project")
-parser.add_argument('--json', type=str, default="create_collector", help='collector file')
+parser.add_argument('--json', type=str, default="convert_collector", help='collector file')
 parser.add_argument('--Header', type=str, default="200630_type", help='output header')
 parser.add_argument('--batch_size', type=int, default=128, help='batch_size default=64')
 parser.add_argument('--epochs', type=int, default=400, help='epochs default=20')
 args = parser.parse_args()
 
 method_info = {
-    "repeat": ['mdpi', 'half', 'dhalf', 'MCCV', 'base'],
+    "repeat": ['smdpi', 'mdpi', 'half', 'dhalf', 'MCCV', 'base'],
     "people": 'LeaveOne',
-    "CrossValidation": ['7CV', 'SCV']
+    "CrossValidation": ['7CV', 'SCV'],
+    "specific": ['sleaveone']
 }
 
 
@@ -88,11 +90,6 @@ def experiment(param, comb_degree=5):
         if param.model_name in model_compactor.model_info['dl']:
             deep_learning_experiment_configuration(param, train, test, [nb_class, nb_people])
             ds.save_result(param)
-        if param.model_name in model_compactor.model_info['c_dl']:
-            deep_learning_experiment_custom(param, train, test, [nb_class, nb_people])
-            ds.save_result(param)
-        elif param.model_name in model_compactor.model_info['ml']:
-            machine_learning_experiment_configuration(param, train, test, [nb_class, nb_people])
 
 
 def deep_learning_experiment_configuration(param, train, test, label_info):
@@ -466,7 +463,7 @@ def cropping(param):
     print('Done?')
 
 
-# custom 2 Binary Classification without PA(0)
+# custom Binary Classification without PA(0)
 def custom2(param, comb_degree=3):
     print(f"{dt()} :: Experiments Initialize")
 
@@ -496,6 +493,82 @@ def visualize_configuration():
 def convert(param):
     print(f"{dt()} :: Convert Initialize")
 
+    for nb_combine in range(1, 5):
+        print(f"{dt()} :: {nb_combine} sample experiments")
+        param.nb_combine = nb_combine
+        if nb_combine != 1:
+            continue
+
+        datasets = loader.data_loader(param, target=nb_combine)
+        train, test, nb_class, nb_people = preprocessing.chosen_method(param=param, comb=nb_combine, datasets=datasets)
+        param.nb_modal = 3
+
+        if param.method == method_info['people']:
+            nb_repeat = nb_people
+        elif param.method in method_info['repeat']:
+            nb_repeat = 20
+        elif param.method in method_info["CrossValidation"]:
+            nb_repeat = param.collect["CrossValidation"] * 5
+        elif param.method in method_info['specific']:
+            nb_repeat = 5
+
+        for repeat in range(nb_repeat):
+            print(f"{dt()} :: {repeat + 1}/{nb_repeat} convert target progress")
+
+            tartr = train[repeat]
+            tarte = test[repeat]
+
+            if param.datatype == "type":
+                tartr["tag"] -= 1
+                tarte["tag"] -= 1
+
+            tr_label = np.zeros([len(tartr["people"]), 2])
+            te_label = np.zeros([len(tarte["people"]), 2])
+
+            for idx, (tr, te) in enumerate(zip([tartr["people"], tartr["tag"]], [tarte["people"], tarte["tag"]])):
+                tr_label[:, idx] = tr
+                te_label[:, idx] = te
+
+            for idx in range(3):
+                tartr[f"data_{idx}"] = np.hstack([tartr[f"data_{idx}"], tr_label])
+                tarte[f"data_{idx}"] = np.hstack([tarte[f"data_{idx}"], te_label])
+
+            tr_data = [tartr["data_0"], tartr["data_1"], tartr["data_2"]]
+            te_data = [tarte["data_0"], tarte["data_1"], tarte["data_2"]]
+
+            train_dict = dict()
+            test_dict = dict()
+            datatype = ['pressure', 'acc', 'gyro']
+            for train_target, test_target, target in zip(tr_data, te_data, datatype):
+                train_dict[target] = train_target
+                test_dict[target] = test_target
+
+            save_dir = '../Result/Convert'
+            train_folder = 'train'
+            test_folder = 'test'
+            folder_name = 'matfile'
+            file_name = f'{repeat}.mat'
+
+            train_dir = None
+            test_dir = None
+            for idx, target in enumerate([save_dir, folder_name, train_folder]):
+                if idx == 0:
+                    train_dir = target
+                else:
+                    train_dir = os.path.join(train_dir, target)
+                if os.path.exists(train_dir) is not True:
+                    os.mkdir(train_dir)
+
+            for idx, target in enumerate([save_dir, folder_name, test_folder]):
+                if idx == 0:
+                    test_dir = target
+                else:
+                    test_dir = os.path.join(test_dir, target)
+                if os.path.exists(test_dir) is not True:
+                    os.mkdir(test_dir)
+
+            savemat(os.path.join(train_dir, file_name), train_dict)
+            savemat(os.path.join(test_dir, file_name), test_dict)
 
 
 if __name__ == "__main__":
