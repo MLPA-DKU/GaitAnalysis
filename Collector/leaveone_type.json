@@ -1,7 +1,7 @@
 {
   "object" : "experiment",
-  "dataset" : "type",
-  "method": "LeaveOne",
+  "dataset" : "disease",
+  "method": "sleaveone",
   "model": "base",
   "folder": "200722_type",
   "collect": {

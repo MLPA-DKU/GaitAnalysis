@@ -18,7 +18,7 @@ from Code.result_collector import column_info, directory, DataStore
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser(description="Gait Analysis Project")
-parser.add_argument('--json', type=str, default="convert_collector", help='collector file')
+parser.add_argument('--json', type=str, default="leaveone_collector", help='collector file')
 parser.add_argument('--Header', type=str, default="200630_type", help='output header')
 parser.add_argument('--batch_size', type=int, default=128, help='batch_size default=64')
 parser.add_argument('--epochs', type=int, default=400, help='epochs default=20')

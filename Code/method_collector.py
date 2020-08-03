@@ -82,10 +82,10 @@ def method_sn(param, comb, datasets):
 
 def method_leaveone(param, comb, datasets):
     BaseDivideProcess(param.method, param.model_name, dataset=datasets)
-    if param.method is "cropping":
+    if param.method is "cropping" or param.method is "convert":
         divide_process = LeaveOneDP_ns(param.method, param.model_name, dataset=datasets, rsub=None)
-    elif param.method is "convert":
-        divide_process = LeaveOneDP_ns(param.method, param.model_name, dataset=datasets, rsub=None)
+    elif param.method is "sleaveone":
+        divide_process = LeaveOneDP_select(param.method, param.model_name, dataset=datasets, rsub=None)
     else:
         divide_process = LeaveOneDP(param.method, param.model_name, dataset=datasets, rsub=None)
     if param.datatype == "disease":
@@ -805,22 +805,7 @@ class LeaveOneDP_select(BaseDivideProcess):
 
             class_collect[target_class] = per_people
 
-        c1 = len(class_collect[0])
-        c2 = len(class_collect[1])
-        c3 = len(class_collect[2])
 
-        randc1 = sample(range(c1), c1)
-        randc2 = sample(range(c2), c2)
-        randc3 = sample(range(c3), c3)
-        c1_data = class_collect[0][randc1]
-        c2_data = class_collect[1][randc2]
-        c3_data = class_collect[2][randc3]
-
-        min_value = min([c1, c2, c3])
-        for idx in range(min_value):
-            c1_data[idx]
-            c2_data[idx]
-            c3_data[idx]
 
 
 

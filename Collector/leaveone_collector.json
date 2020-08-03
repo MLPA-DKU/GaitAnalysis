@@ -1,9 +1,9 @@
 {
   "object" : "experiment",
   "dataset" : "disease",
-  "method": "LeaveOne",
-  "model": "lstm",
-  "folder": "200626_type",
+  "method": "sleaveone",
+  "model": "base",
+  "folder": "200730_disease",
   "collect": {
     "sensor_type": ["pressure", "acc", "gyro"],
     "sensor_number": {
