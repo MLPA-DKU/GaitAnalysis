@@ -82,20 +82,24 @@ def method_sn(param, comb, datasets):
 
 def method_leaveone(param, comb, datasets):
     BaseDivideProcess(param.method, param.model_name, dataset=datasets)
-    if param.method is "cropping" or param.method is "convert":
+    if param.method == "cropping" or param.method == "convert":
         divide_process = LeaveOneDP_ns(param.method, param.model_name, dataset=datasets, rsub=None)
-    elif param.method is "sleaveone":
+        tot_repeat = divide_process.nb_people
+        if param.datatype == "disease":
+            divide_process.nb_class += 1
+    elif param.method == "sleaveone":
         divide_process = LeaveOneDP_select(param.method, param.model_name, dataset=datasets, rsub=None)
+        tot_repeat = 20
     else:
         divide_process = LeaveOneDP(param.method, param.model_name, dataset=datasets, rsub=None)
-    if param.datatype == "disease":
-        divide_process.nb_class += 1
+        if param.datatype == "disease":
+            divide_process.nb_class += 1
     sampling_data = divide_process.sampling()
 
     sample_train = sampling_data["train"]
     sample_test = sampling_data["test"]
 
-    for repeat in range(divide_process.nb_people):
+    for repeat in range(tot_repeat):
         train = sample_train[repeat]
         test = sample_test[repeat]
 
@@ -769,109 +773,81 @@ class LeaveOneDP_select(BaseDivideProcess):
         total_dataset = dict()
         total_dataset["train"] = list()
         total_dataset["test"] = list()
+        seed_num = 0
 
-        train_dict = dict()
-        test_dict = dict()
-
-        class_collect = dict()
-        for target_class in range(self.nb_class):
-
-            # per label collect
-            data1 = self.dataset[0][target_class == self.dataset[0][:, -1]]
-            data2 = self.dataset[1][target_class == self.dataset[0][:, -1]]
-            data3 = self.dataset[2][target_class == self.dataset[0][:, -1]]
-
-            per_people = list()
-            for peo_target in range(self.nb_people):
-
-                find_idx = []
-                count_idx = 0
-                drow, _ = data1.shape
-
-                for idx in range(drow):
-                    if data1[idx, -2] == peo_target:
-                        find_idx.append(idx)
-                        count_idx += 1
-
-                if len(find_idx) == 0:
-                    continue
-
-                dataset_list = list()
-                for dataset in [data1, data2, data3]:
-                    target = dataset[find_idx[0]:find_idx[-1] + 1, :]
-                    dataset_list.append(target)
-
-                per_people.append(dataset_list)
-
-            class_collect[target_class] = per_people
-
-
-
-
-
-        for peo_target in range(self.nb_people):
+        for repeat in range(20):
             train_dict = dict()
             test_dict = dict()
+            class_collect = dict()
 
-            dataset_list = list()
+            for target_class in range(1, self.nb_class):
+
+                # per label collect
+                data1 = self.dataset[0][target_class == self.dataset[0][:, -1]]
+                data2 = self.dataset[1][target_class == self.dataset[0][:, -1]]
+                data3 = self.dataset[2][target_class == self.dataset[0][:, -1]]
+
+                per_people = list()
+                for peo_target in range(self.nb_people):
+
+                    find_idx = []
+                    count_idx = 0
+                    drow, _ = data1.shape
+
+                    for idx in range(drow):
+                        if data1[idx, -2] == peo_target:
+                            find_idx.append(idx)
+                            count_idx += 1
+
+                    if len(find_idx) == 0:
+                        continue
+
+                    dataset_list = list()
+                    for dataset in [data1, data2, data3]:
+                        target = dataset[find_idx[0]:find_idx[-1] + 1, :]
+                        dataset_list.append(target)
+
+                    per_people.append(dataset_list)
+
+                class_collect[target_class] = per_people
+
+            test_list = list()
             train_list = list()
+            for key, datalist in class_collect.items():
+                class_len = len(datalist)
+                seed(seed_num)
+                seed_num += 1
+                ridx = sample(range(class_len), class_len)
+                temp_test = datalist.pop(ridx[0])
+                temp_train = datalist
 
-            find_idx = []
-            count_idx = 0
-            drow, _ = self.data1.shape
+                test_list.append(temp_test)
+                train_list.extend(temp_train)
 
-            for idx in range(drow):
-                if self.plabel[idx] == peo_target:
-                    find_idx.append(idx)
-                    count_idx += 1
+            for sens in range(3):
+                for i, data in enumerate(test_list):
+                    if i == 0:
+                        test_dict[f"data_{sens}"] = data[sens][:, :-2]
+                        if sens == 0:
+                            test_dict["people"] = data[sens][:, -2]
+                            test_dict["tag"] = data[sens][:, -1]
+                    else:
+                        test_dict[f"data_{sens}"] = np.vstack([test_dict[f"data_{sens}"], data[sens][:, :-2]])
+                        if sens == 0:
+                            test_dict["people"] = np.concatenate([test_dict["people"], data[sens][:, -2]])
+                            test_dict["tag"] = np.concatenate([test_dict["tag"], data[sens][:, -1]])
 
-            for dataset in [self.data1, self.data2, self.data3]:
-                target = dataset[find_idx[0]:find_idx[-1] + 1, :]
-
-                if find_idx[0] == 0:
-                    train = dataset[find_idx[-1] + 1:, :]
-                elif find_idx[0] != 0 and find_idx[-1] + 1 != drow:
-                    temp1 = dataset[:find_idx[0], :]
-                    temp2 = dataset[find_idx[-1] + 1:, :]
-                    train = np.vstack([temp1, temp2])
-                elif find_idx[-1] + 1 == drow:
-                    train = dataset[:find_idx[-1] + 1, :]
-
-                dataset_list.append(target)
-                train_list.append(train)
-
-            targetp = self.plabel[find_idx[0]:find_idx[-1] + 1]
-            targetc = self.tlabel[find_idx[0]:find_idx[-1] + 1]
-
-            if find_idx[0] == 0:
-                trainp = self.plabel[find_idx[-1] + 1:]
-                trainc = self.tlabel[find_idx[-1] + 1:]
-            elif find_idx[0] != 0 and find_idx[-1] + 1 != drow:
-                temp1 = self.plabel[:find_idx[0]]
-                temp2 = self.plabel[find_idx[-1] + 1:]
-                trainp = np.concatenate([temp1, temp2])
-
-                temp1 = self.tlabel[:find_idx[0]]
-                temp2 = self.tlabel[find_idx[-1] + 1:]
-                trainc = np.concatenate([temp1, temp2])
-            elif find_idx[-1] + 1 == drow:
-                trainp = self.plabel[:find_idx[-1] + 1]
-                trainc = self.tlabel[:find_idx[-1] + 1]
-
-            target_indexes, _ = dataset_list[0].shape
-            train_indexes, _ = train_list[0].shape
-            random_list1 = sample(range(target_indexes), target_indexes)
-            random_list2 = sample(range(train_indexes), train_indexes)
-
-            for i, dataset in enumerate(dataset_list):
-                test_dict[f"data_{i}"] = dataset[random_list1]
-            test_dict["people"] = targetp[random_list1]
-            test_dict["tag"] = targetc[random_list1]
-
-            for i, dataset in enumerate(train_list):
-                train_dict[f"data_{i}"] = dataset[random_list2]
-            train_dict["people"] = trainp[random_list2]
-            train_dict["tag"] = trainc[random_list2]
+                for i, data in enumerate(train_list):
+                    if i == 0:
+                        train_dict[f"data_{sens}"] = data[sens][:, :-2]
+                        if sens == 0:
+                            train_dict["people"] = data[sens][:, -2]
+                            train_dict["tag"] = data[sens][:, -1]
+                    else:
+                        train_dict[f"data_{sens}"] = np.vstack([train_dict[f"data_{sens}"], data[sens][:, :-2]])
+                        if sens == 0:
+                            train_dict["people"] = np.concatenate([train_dict["people"], data[sens][:, -2]])
+                            train_dict["tag"] = np.concatenate([train_dict["tag"], data[sens][:, -1]])
 
             total_dataset["train"].append(train_dict)
             total_dataset["test"].append(test_dict)

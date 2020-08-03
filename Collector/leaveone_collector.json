@@ -3,7 +3,7 @@
   "dataset" : "disease",
   "method": "sleaveone",
   "model": "base",
-  "folder": "200730_disease",
+  "folder": "200729_disease",
   "collect": {
     "sensor_type": ["pressure", "acc", "gyro"],
     "sensor_number": {

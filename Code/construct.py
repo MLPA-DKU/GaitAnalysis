@@ -18,14 +18,14 @@ from Code.result_collector import column_info, directory, DataStore
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser(description="Gait Analysis Project")
-parser.add_argument('--json', type=str, default="leaveone_collector", help='collector file')
-parser.add_argument('--Header', type=str, default="200630_type", help='output header')
-parser.add_argument('--batch_size', type=int, default=128, help='batch_size default=64')
-parser.add_argument('--epochs', type=int, default=400, help='epochs default=20')
+parser.add_argument('--json', type=str, default="convert_collector", help='collector file')
+parser.add_argument('--Header', type=str, default="not used...", help='output header')
+parser.add_argument('--batch_size', type=int, default=256, help='batch_size default=64')
+parser.add_argument('--epochs', type=int, default=20, help='epochs default=20')
 args = parser.parse_args()
 
 method_info = {
-    "repeat": ['smdpi', 'mdpi', 'half', 'dhalf', 'MCCV', 'base'],
+    "repeat": ['smdpi', 'mdpi', 'half', 'dhalf', 'MCCV', 'base', 'sleaveone'],
     "people": 'LeaveOne',
     "CrossValidation": ['7CV', 'SCV'],
     "specific": ['sleaveone']
@@ -104,16 +104,16 @@ def deep_learning_experiment_configuration(param, train, test, label_info):
     elif param.method in method_info["CrossValidation"]:
         nb_repeat = param.collect["CrossValidation"] * 5
 
-    config = tf.ConfigProto()
+    # config = tf.ConfigProto()
     # config.gpu_options.allow_growth = True
     for repeat in range(nb_repeat):
         # config = tf.compat.v1.ConfigProto()
 
-        sess = tf.Session(config=config)
+        # sess = tf.Session(config=config)
         # use GPU memory in the available GPU memory capacity
 
         # sess = tf.compat.v1.Session(config=config)
-        set_session(sess)
+        # set_session(sess)
 
         print(f"{dt()} :: {repeat+1}/{nb_repeat} experiment progress")
 
@@ -166,9 +166,9 @@ def deep_learning_experiment_configuration(param, train, test, label_info):
         tracking = None
         tr_data = None
         te_date = None
-        K.clear_session()
+        # K.clear_session()
         tf.keras.backend.clear_session()
-        sess.close()
+        # sess.close()
 
 
 def deep_learning_experiment_custom(param, train, test, label_info):
@@ -326,7 +326,7 @@ def machine_learning_experiment_configuration(param, train, test, label_info):
         if param.datatype == "type":
             nb_class = label_info[0]
         elif param.datatype == "disease":
-            nb_class = label_info[0] + 1
+            nb_class = label_info[0]
 
         # Machine Learning Models will need to labeling info.
         model_score = model_compactor.model_setting(param, tartr, tarte, [nb_class, nb_people])

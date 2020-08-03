@@ -62,8 +62,6 @@ def method_collect(param, comb, datasets):
         return mc.method_base(param, comb, datasets)
     elif param.method == "LeaveOne" or param.method == "sleaveone":
         return mc.method_leaveone(param, comb, datasets)
-    elif param.method == "SelectLeaveOne":
-        return mc.method_sleaveone(param, comb, datasets)
     elif param.method == "Feature_Added_LeaveOne":
         return mc.method_fa_leaveone(param, comb, datasets)
     elif param.method == "mdpi":

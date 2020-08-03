@@ -1,7 +1,7 @@
 {
   "object" : "convert",
   "dataset" : "disease",
-  "method": "smdpi",
+  "method": "sleaveone",
   "model": "convert",
   "folder": "200730_disease",
   "collect": {

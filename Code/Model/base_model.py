@@ -1,4 +1,5 @@
-import keras
+import tensorflow as tf
+import tensorflow.keras as keras
 
 
 # multi modal DCNN
@@ -76,7 +77,7 @@ def dcnn_network(shape_list, nb_class, comb_degree):
     merged_dropout = keras.layers.Dropout(0.7)(merged_batchnorm2)
     merged_class_layer = keras.layers.Dense(units=nb_class, activation='softmax')(merged_dropout)
 
-    model = keras.models.Model(inputs=[input1, input2, input3], output=merged_class_layer)
+    model = keras.models.Model([input1, input2, input3], merged_class_layer)
     model.compile(optimizer=keras.optimizers.Adam(lr=0.0001), loss=keras.losses.categorical_crossentropy,
                        metrics=['accuracy'])
     return model
