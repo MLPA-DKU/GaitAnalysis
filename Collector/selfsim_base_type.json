@@ -1,7 +1,7 @@
 {
   "object" : "experiment",
   "dataset" : "type",
-  "method": "base",
+  "method": "LeaveOne",
   "model": "similarity",
   "folder": "200722_type",
   "collect": {

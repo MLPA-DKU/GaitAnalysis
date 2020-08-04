@@ -90,5 +90,5 @@ def model_setting(param, train, test, label_info):
         for i in range(nb_modal):
             _, row, col = train[f"data_{i}"].shape
             shape_list.append((row, col))
-        model = ss.self_similarity_network(shape_list=shape_list, comb_degree=param.nb_combine)
+        model = ss.self_similarity_network_conv2d(shape_list=shape_list, comb_degree=param.nb_combine)
     return model

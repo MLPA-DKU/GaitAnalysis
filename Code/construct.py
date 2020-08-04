@@ -18,10 +18,10 @@ from Code.result_collector import column_info, directory, DataStore
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser(description="Gait Analysis Project")
-parser.add_argument('--json', type=str, default="convert_collector", help='collector file')
+parser.add_argument('--json', type=str, default="selfsim_base_type", help='collector file')
 parser.add_argument('--Header', type=str, default="not used...", help='output header')
-parser.add_argument('--batch_size', type=int, default=256, help='batch_size default=64')
-parser.add_argument('--epochs', type=int, default=20, help='epochs default=20')
+parser.add_argument('--batch_size', type=int, default=32, help='batch_size default=64')
+parser.add_argument('--epochs', type=int, default=200, help='epochs default=20')
 args = parser.parse_args()
 
 method_info = {
@@ -89,6 +89,9 @@ def experiment(param, comb_degree=5):
         train, test, nb_class, nb_people = preprocessing.chosen_method(param=param, comb=nb_combine, datasets=datasets)
         if param.model_name in model_compactor.model_info['dl']:
             deep_learning_experiment_configuration(param, train, test, [nb_class, nb_people])
+            ds.save_result(param)
+        elif param.model_name in model_compactor.model_info['c_dl']:
+            deep_learning_experiment_custom(param, train, test, [nb_class, nb_people])
             ds.save_result(param)
 
 
@@ -248,6 +251,7 @@ def deep_learning_experiment_custom(param, train, test, label_info):
 
             test_loss = tf.keras.metrics.Mean(name='test_loss')
             test_accuracy = tf.keras.metrics.CategoricalAccuracy(name='test_accuracy')
+
             for epoch in range(param.epochs):
 
                 for step, (x_batch1, x_batch2, x_batch3, y_batch) in enumerate(zip(x_train1, x_train2, x_train3, y_train)):
@@ -261,7 +265,7 @@ def deep_learning_experiment_custom(param, train, test, label_info):
                         loss_val3 = loss_object(y_batch, logits[2])
 
                         true_loss = tf.math.add(logits[0]*0.3, logits[1]*0.3, logits[2]*0.3)
-                        true_loss = fin_loss_object(y_batch, true_loss)
+                        true_loss = fin_loss_object(y_batch, logits[6])
                     # gen = model.train_on_batch(, [y_batch, y_batch, y_batch])
                     # print(f'train_loss : {gen}')
 
@@ -269,12 +273,25 @@ def deep_learning_experiment_custom(param, train, test, label_info):
                     optimizer.apply_gradients((grads, var) for (grads, var)
                                               in zip(grads, model.trainable_variables) if grads is not None)
 
-                    train_loss(true_loss)
-                    train_accuracy(y_batch, logits[0])
-                    train_accuracy(y_batch, logits[1])
-                    train_accuracy(y_batch, logits[2])
+                    tr_loss = train_loss(true_loss)
+                    tr_acc1 = train_accuracy(y_batch, logits[0])
+                    tr_acc2 = train_accuracy(y_batch, logits[1])
+                    tr_acc3 = train_accuracy(y_batch, logits[2])
+
+                    tr_acc4 = train_accuracy(y_batch, logits[6])
+
+                    sim_images = np.reshape(logits[3], (-1, 128, 128, 1))
+                    logdir = f"../Log/similarity_matrix/{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
+                    file_writer = tf.summary.create_file_writer(logdir)
+                    with file_writer.as_default():
+                        tf.summary.scalar("train_loss", tr_loss, step=epoch)
+                        tf.summary.scalar("train_acc", tr_acc4, step=epoch)
+                        tf.summary.image("Similarity Matrix", sim_images, step=epoch, max_outputs=12)
+
+
                     print(f'[step : {step}/{len(x_train1)}] [epochs : {epoch}/{param.epochs}]'
-                          f'train loss : {train_loss.results}, train_accuracy : {train_accuracy.result()*100}')
+                          f'train loss : {tr_loss}, domain 1-3_accuracy : {tr_acc1*100}, {tr_acc2*100}, {tr_acc3*100}')
+                    print(f'train merge acc : {tr_acc4*100} test loss : not implemented...')
 
         if repeat == 0:
             tracking = [dt(), param.method, param.model_name, param.nb_combine, repeat, model_score[0], model_score[1]]

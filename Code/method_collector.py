@@ -92,6 +92,7 @@ def method_leaveone(param, comb, datasets):
         tot_repeat = 20
     else:
         divide_process = LeaveOneDP(param.method, param.model_name, dataset=datasets, rsub=None)
+        tot_repeat = divide_process.nb_people
         if param.datatype == "disease":
             divide_process.nb_class += 1
     sampling_data = divide_process.sampling()
@@ -780,7 +781,7 @@ class LeaveOneDP_select(BaseDivideProcess):
             test_dict = dict()
             class_collect = dict()
 
-            for target_class in range(1, self.nb_class):
+            for target_class in range(1, self.nb_class+1):
 
                 # per label collect
                 data1 = self.dataset[0][target_class == self.dataset[0][:, -1]]
@@ -788,7 +789,7 @@ class LeaveOneDP_select(BaseDivideProcess):
                 data3 = self.dataset[2][target_class == self.dataset[0][:, -1]]
 
                 per_people = list()
-                for peo_target in range(self.nb_people):
+                for peo_target in range(self.nb_people+1):
 
                     find_idx = []
                     count_idx = 0
