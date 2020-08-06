@@ -149,14 +149,19 @@ def modified_cnn2d_block(comb_degree, input_layer, sensor_index):
     input1_cnn3 = keras.layers.Conv1D(filters=nb_filter * 2, kernel_size=20,
                                       strides=nb_strides, activation='relu')(input1_batchnorm2)
     input1_batchnorm3 = keras.layers.BatchNormalization()(input1_cnn3)
+    input1_batchnorm3 = keras.layers.GlobalAveragePooling1D()(input1_batchnorm3)
+
+    input1_batchnorm3 = keras.layers.Flatten()(input1_batchnorm3)
+    input1_batchnorm3 = keras.layers.Reshape((1, 64))(input1_batchnorm3)
 
     permute_layer = keras.layers.Permute((2, 1))(input1_batchnorm3)
     similarity_layer1 = keras.layers.Dot(axes=(1, 2), name=f"similarity_block{sensor_index}")([input1_batchnorm3, permute_layer])
-    # (w, h) = tf.shape(similarity_layer1)
+
     reshaped = keras.layers.Reshape((64, 64, 1))(similarity_layer1)
     similarity_layer2 = keras.layers.Conv2D(nb_filter * 4, kernel_size=(3, 3), activation='relu')(reshaped)
     similarity_layer2 = keras.layers.BatchNormalization()(similarity_layer2)
-    similarity_layer3 = keras.layers.Conv2D(nb_filter * 4, kernel_size=(3, 3), activation='relu')(similarity_layer2)
+    pool1 = keras.layers.AveragePooling2D(pool_size=(3, 3), strides=(2, 2), padding="same")(similarity_layer2)
+    similarity_layer3 = keras.layers.Conv2D(nb_filter * 2, kernel_size=(1, 1), activation='relu')(pool1)
     similarity_layer3 = keras.layers.BatchNormalization()(similarity_layer3)
 
     # similarity_layer 1 will be visualized as similarity matrix
@@ -175,25 +180,26 @@ def self_similarity_network_conv2d(shape_list, comb_degree):
     input3_cnn, sim_block3 = modified_cnn2d_block(comb_degree, input3, sensor_index=3)
 
     pa = keras.layers.Flatten()(input1_cnn)
-    # pa = keras.layers.Dropout(0.3)(pa)
+    pa = keras.layers.Dropout(0.3)(pa)
     con_pa = keras.layers.Dense(units=256, activation='relu')(pa)
     pa = keras.layers.Dense(units=7)(con_pa)
     pa = keras.layers.Softmax()(pa)
 
     pg = keras.layers.Flatten()(input2_cnn)
-    # pg = keras.layers.Dropout(0.3)(pg)
+    pg = keras.layers.Dropout(0.3)(pg)
     con_pg = keras.layers.Dense(units=256, activation='relu')(pg)
     pg = keras.layers.Dense(units=7)(con_pg)
     pg = keras.layers.Softmax()(pg)
 
-
     ag = keras.layers.Flatten()(input3_cnn)
-    # ag = keras.layers.Dropout(0.3)(ag)
+    ag = keras.layers.Dropout(0.3)(ag)
     con_ag = keras.layers.Dense(units=256, activation='relu')(ag)
     ag = keras.layers.Dense(units=7)(con_ag)
     ag = keras.layers.Softmax()(ag)
 
     merged_layer = keras.layers.concatenate([con_pa, con_pg, con_ag])
+    merged_layer = keras.layers.Dense(units=7, activation='relu')(merged_layer)
+
     merged_layer = keras.layers.Dense(units=7, activation='softmax')(merged_layer)
 
     # summation = keras.layers.Add()([pa, pg, ag])

@@ -18,9 +18,9 @@ from Code.result_collector import column_info, directory, DataStore
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser(description="Gait Analysis Project")
-parser.add_argument('--json', type=str, default="selfsim_base_type", help='collector file')
+parser.add_argument('--json', type=str, default="convert_collector", help='collector file')
 parser.add_argument('--Header', type=str, default="not used...", help='output header')
-parser.add_argument('--batch_size', type=int, default=32, help='batch_size default=64')
+parser.add_argument('--batch_size', type=int, default=16, help='batch_size default=64')
 parser.add_argument('--epochs', type=int, default=200, help='epochs default=20')
 args = parser.parse_args()
 
@@ -288,10 +288,11 @@ def deep_learning_experiment_custom(param, train, test, label_info):
                         tf.summary.scalar("train_acc", tr_acc4, step=epoch)
                         tf.summary.image("Similarity Matrix", sim_images, step=epoch, max_outputs=12)
 
-
                     print(f'[step : {step}/{len(x_train1)}] [epochs : {epoch}/{param.epochs}]'
                           f'train loss : {tr_loss}, domain 1-3_accuracy : {tr_acc1*100}, {tr_acc2*100}, {tr_acc3*100}')
                     print(f'train merge acc : {tr_acc4*100} test loss : not implemented...')
+
+            model.evaluate([te_data[0], te_data[1], te_data[2]])
 
         if repeat == 0:
             tracking = [dt(), param.method, param.model_name, param.nb_combine, repeat, model_score[0], model_score[1]]
