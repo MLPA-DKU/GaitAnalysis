@@ -18,7 +18,7 @@ from Code.result_collector import column_info, directory, DataStore
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser(description="Gait Analysis Project")
-parser.add_argument('--json', type=str, default="convert_collector", help='collector file')
+parser.add_argument('--json', type=str, default="vector_to_image", help='collector file')
 parser.add_argument('--Header', type=str, default="not used...", help='output header')
 parser.add_argument('--batch_size', type=int, default=16, help='batch_size default=64')
 parser.add_argument('--epochs', type=int, default=200, help='epochs default=20')
@@ -73,6 +73,8 @@ def chosen_object(object_name):
         cropping(params)
     elif object_name == "convert":
         convert(params)
+    elif object_name == "vti":
+        vector_to_img(params)
 
 
 # experiment
@@ -587,6 +589,41 @@ def convert(param):
 
             savemat(os.path.join(train_dir, file_name), train_dict)
             savemat(os.path.join(test_dir, file_name), test_dict)
+
+
+def vector_to_img(param):
+    NotImplemented
+    print(f"{dt()} :: Create Initialize")
+    datasets = loader.create_loader(param)
+    nb_comb = 1
+
+    dc = dict()
+    for key, files in datasets.items():
+        files = sorted(files)
+        param.key = key
+        class_collect = list()
+
+        for file in files:
+            vti_configuration(param, file, nb_comb)
+            # class_collect.append(output)
+        # dc[key] = class_collect
+        # print(f"{dt()} :: --Combine Number : {nb_comb} Save Initialize")
+        # cc.save_datasets(param, dc, nb_comb)
+        # print(f"{dt()} :: --Done")
+
+
+def vti_configuration(param, file, nb_comb):
+    class_name = file.split('/')[-2]
+    peo_nb, class_text = file.split('/')[-1].split('_')
+    class_nb = class_text.split('.')[0]
+    # left, right
+    pressure, acc, gyro = cc.vti_init(param, file)
+    pressure = cc.pressure_vti(pressure)
+    acc = cc.accgyr_vti(acc)
+    gyro = cc.accgyr_vti(gyro)
+    # cc.gyro_vti(gyro)
+    # return [file, vectorized]
+    return 0
 
 
 if __name__ == "__main__":

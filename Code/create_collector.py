@@ -6,6 +6,8 @@ import cv2
 import datetime
 from scipy.io import savemat
 from Code.utils import dt_printer as dt
+from PIL import Image, ImageDraw
+from skimage.transform import resize as skiresize
 
 
 # Init
@@ -594,3 +596,183 @@ def save_datasets_v2(param, data_collect, nb_comb):
         f = open(os.path.join(save_dir, 'keymap.txt'), 'w')
         f.write(str(keymap))
         f.close()
+
+
+def vti_init(param, file):
+
+    data_column = param.collect["csv_columns_names"]["datasets"]
+
+    total_dataset = pd.read_csv(filepath_or_buffer=file
+                                , names=data_column, header=None, skiprows=1, encoding='utf7')
+    left_pressure = total_dataset[param.collect["csv_columns_names"]["left_pressure"]]
+    right_pressure = total_dataset[param.collect["csv_columns_names"]["right_pressure"]]
+    left_acc = total_dataset[param.collect["csv_columns_names"]["left_acc"]]
+    right_acc = total_dataset[param.collect["csv_columns_names"]["right_acc"]]
+    left_gyro = total_dataset[param.collect["csv_columns_names"]["left_gyro"]]
+    right_gyro = total_dataset[param.collect["csv_columns_names"]["right_gyro"]]
+
+    return [left_pressure, right_pressure], [left_acc, right_acc], [left_gyro, right_gyro]
+
+
+def image_pixel_to_eps(img, width, height, value):
+    # ###################### using distance and gaussian ##################################
+    # self.GaussianMatrix(get_image=img, value=value, sigma=value, width=width, height=height)
+
+    # ################################# elipse - easy mode ################################
+    if value == 2:
+        fill_out = 255
+    elif value == 1:
+        fill_out = 170
+    elif value == 0:
+        fill_out = 85
+
+    draw = ImageDraw.Draw(img)
+    draw.ellipse([(width - 36, height - 36), (width + 36, height + 36)], fill=fill_out)
+
+    # img_size = (360, 760)
+    # for y in range(img_size[0]):
+    #    color = 0
+    #    for x in range(img_size[1]):
+    #
+    #        #distanceToCenter = math.sqrt((x - width)**2 + (y - height)**2)
+    #
+    #        #distanceToCenter = float(distanceToCenter) / (math.sqrt(2) * width)
+    #
+    #        #color = 0 * distanceToCenter + value * ( 1 - distanceToCenter)
+    #
+    #        if color < width - 85 :
+    #            color = 85
+    #        elif color > 255:
+    #            color = 255
+    #
+    #        img.putpixel(xy=(width, height), value=(int(color)))
+
+    return img
+
+
+def pressure_vti(dataset):
+    # sensor_1 = (241,74) #241 , 74
+    # sensor_2 = (256,195) #256, 195
+    # sensor_3 = (241,316) #241, 316
+    # sensor_4 = (218,762) #218, 762
+    # sensor_5 = (100,157) #100, 157
+    # sensor_6 = (70,297) #70, 297
+    # sensor_7 = (70,437) #70, 437
+    # sensor_8 = (96,762) #96, 762
+    sensor_points = {
+        'left': [(241, 74), (256, 195), (241, 316), (218, 762), (100, 157), (70, 297), (70, 437), (96, 762)],
+        'right': [(99, 74), (85, 195), (99, 316), (148, 762), (260, 157), (290, 297), (290, 437), (264, 762)]}
+
+    # left_data = dataset[0].as_matrix()
+    # right_data = dataset[1].as_matrix()
+    left_data = dataset[0].values
+    right_data = dataset[1].values
+    if left_data.shape[0] != left_data.shape[0]:
+        min_sample = min(left_data.shape[0], right_data.shape[0])
+        left_data = left_data[:min_sample]
+        right_data = left_data[:min_sample]
+    sample_len = len(dataset[0].values)
+    sample_col = left_data.shape[1]
+
+    if sample_len < 500:
+        return 0
+
+    foot_dataset = dict()
+    foot_dataset['left'] = list()
+    foot_dataset['right'] = list()
+    for idx in range(sample_len):
+        left_list = list()
+        right_list = list()
+        for jdx in range(sample_col):
+            left_list.append(left_data[idx, jdx])
+            right_list.append(right_data[idx, jdx])
+
+        left_img = Image.new(mode='L', size=(360, 800), color=0)
+        right_img = Image.new(mode='L', size=(360, 800), color=0)
+
+        for sen_idx in range(8):
+            left_idx = left_list[sen_idx]
+            right_idx = right_list[sen_idx]
+            (lw, lh) = sensor_points['left'][sen_idx]
+            (rw, rh) = sensor_points['right'][sen_idx]
+
+            left_img = image_pixel_to_eps(img=left_img, width=lw, height=lh, value=left_idx)
+            right_img = image_pixel_to_eps(img=right_img, width=rw, height=rh, value=right_idx)
+
+        left_img = np.asarray(left_img, dtype="int32")
+        left_img = skiresize(image=left_img, output_shape=(84, 224), order=1, mode='reflect', anti_aliasing=False)
+        # left_img = toimage(arr=left_img, mode='L')
+        left_img = Image.fromarray(obj=left_img)
+
+        right_img = np.asarray(right_img, dtype="int32")
+        right_img = skiresize(image=right_img, output_shape=(84, 224), order=1, mode='reflect', anti_aliasing=False)
+        # right_img = toimage(arr=right_img, mode='L')
+        right_img = Image.fromarray(obj=right_img)
+
+        foot_dataset['left'].append(left_img)
+        foot_dataset['right'].append(right_img)
+
+    return foot_dataset
+
+
+def gsc_norm(target, smm, vmin, vmax):
+    (smin, smax) = smm
+    return (target - vmin) * (smax - smin) / (vmax - vmin) + smin
+
+
+def accgyr_vti(dataset):
+    minmax = (0, 255)
+    left_data = dataset[0].values.astype(int)
+    right_data = dataset[1].values.astype(int)
+    if left_data.shape[0] != left_data.shape[0]:
+        min_sample = min(left_data.shape[0], right_data.shape[0])
+        left_data = left_data[:min_sample]
+        right_data = left_data[:min_sample]
+    sample_len = len(dataset[0].as_matrix())
+    sample_col = left_data.shape[1]
+
+    if sample_len < 500:
+        return 0
+
+    foot_dataset = dict()
+    foot_dataset['left'] = list()
+    foot_dataset['right'] = list()
+
+    left_img = np.zeros([sample_len, 3])
+    right_img = np.zeros([sample_len, 3])
+
+    for jdx in range(sample_col):
+        lmin = min(left_data[:, jdx])
+        lmax = max(left_data[:, jdx])
+        rmin = min(right_data[:, jdx])
+        rmax = max(right_data[:, jdx])
+        for idx in range(sample_len):
+            left_img[idx, jdx] = gsc_norm(left_data[idx, jdx], minmax, lmin, lmax)
+            right_img[idx, jdx] = gsc_norm(right_data[idx, jdx], minmax, rmin, rmax)
+
+    foot_dataset['left'].append(left_img)
+    foot_dataset['right'].append(right_img)
+    return foot_dataset
+
+
+def save_vti(dataset, sensor_name, people_nb, class_nb):
+    folder_dir = '../Datasets/img'
+
+    left_dataset = dataset['left']
+    right_dataset = dataset['right']
+
+    for idx, target in enumerate([folder_dir, sensor_name, f'{people_nb}_{class_nb}' ]):
+        if idx == 0:
+            save_dir = target
+            if os.path.exists(save_dir) is not True:
+                os.mkdir(save_dir)
+        else:
+            save_dir = os.path.join(save_dir, target)
+            if os.path.exists(save_dir):
+                os.mkdir(save_dir)
+
+    for idx, (left, right) in enumerate(zip(left_dataset, right_dataset)):
+        left_dir = os.path.join(save_dir, 'left')
+        right_dir = os.path.join(save_dir, 'right')
+        left.save(os.path.join(left_dir, f'{idx}.png'))
+        right.save(os.path.join(right_dir, f'{idx}.png'))
