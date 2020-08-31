@@ -77,6 +77,14 @@ def viz_loader(param):
     return dataset
 
 
+def vti_loader(param):
+    data_dir = f'../Datasets/vti/{param.datatype}'
+
+    pressure_dirs = [folder for folder in os.listdir(os.path.join(data_dir, 'pressure'))
+                     if os.path.isdir(os.listdir(os.path.join(data_dir, 'pressure', folder)))]
+
+
+
 def create_loader(param):
     data_dir = f"../Raw/{param.datatype}"
 

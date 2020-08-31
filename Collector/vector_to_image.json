@@ -1,8 +1,8 @@
 {
   "object" : "vti",
-  "dataset" : "type",
+  "dataset" : "disease",
   "method": "no_noise",
-  "model": "all",
+  "model": "cnn",
   "folder": "200807_vti",
   "collect": {
     "sensor_type": ["pressure", "acc", "gyro"],

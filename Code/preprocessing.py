@@ -167,3 +167,8 @@ def normalize_all_of_length(param, datasets):
 
     return [np.hstack([pressure_collect, peo_collect, type_collect]),
             np.hstack([acc_collect, peo_collect, type_collect]), np.hstack([gyro_collect, peo_collect, type_collect])]
+
+
+def vti_preprocess(param, pns, cns, datasets):
+    for pn, cn, dataset in zip(pns, cns, datasets):
+        print(pn, cn)

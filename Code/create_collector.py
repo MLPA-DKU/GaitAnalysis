@@ -7,8 +7,7 @@ import datetime
 from scipy.io import savemat
 from Code.utils import dt_printer as dt
 from PIL import Image, ImageDraw
-from skimage.transform import resize as skiresize
-
+# from skimage.transform import resize as skiresize
 
 # Init
 def dataset_init(param, file):
@@ -677,13 +676,23 @@ def pressure_vti(dataset):
     if sample_len < 500:
         return 0
 
+    nan_cleaner = sample_len
+    for idx in range(sample_len):
+        nan_state = False
+        for jdx in range(sample_col):
+            if str(left_data[idx, jdx]) == 'nan' or str(right_data[idx, jdx]) == 'nan':
+                nan_state = True
+        if nan_state is True:
+            nan_cleaner -= 1
+
     foot_dataset = dict()
     foot_dataset['left'] = list()
     foot_dataset['right'] = list()
-    for idx in range(sample_len):
+    for idx in range(nan_cleaner):
         left_list = list()
         right_list = list()
         for jdx in range(sample_col):
+
             left_list.append(left_data[idx, jdx])
             right_list.append(right_data[idx, jdx])
 
@@ -699,15 +708,21 @@ def pressure_vti(dataset):
             left_img = image_pixel_to_eps(img=left_img, width=lw, height=lh, value=left_idx)
             right_img = image_pixel_to_eps(img=right_img, width=rw, height=rh, value=right_idx)
 
-        left_img = np.asarray(left_img, dtype="int32")
-        left_img = skiresize(image=left_img, output_shape=(84, 224), order=1, mode='reflect', anti_aliasing=False)
-        # left_img = toimage(arr=left_img, mode='L')
-        left_img = Image.fromarray(obj=left_img)
+        left_img = np.array(left_img)
+        right_img = np.array(right_img)
 
-        right_img = np.asarray(right_img, dtype="int32")
-        right_img = skiresize(image=right_img, output_shape=(84, 224), order=1, mode='reflect', anti_aliasing=False)
+        left_img = cv2.resize(left_img, dsize=(84, 224), interpolation=cv2.INTER_CUBIC)
+        right_img = cv2.resize(right_img, dsize=(84, 224), interpolation=cv2.INTER_CUBIC)
+
+        # left_img = np.asarray(left_img, dtype="int32")
+        # left_img = skiresize(image=left_img, output_shape=(84, 224), order=1, mode='reflect', anti_aliasing=False)
+        # left_img = toimage(arr=left_img, mode='L')
+        # left_img = Image.fromarray(obj=left_img)
+
+        # right_img = np.asarray(right_img, dtype="int32")
+        # right_img = skiresize(image=right_img, output_shape=(84, 224), order=1, mode='reflect', anti_aliasing=False)
         # right_img = toimage(arr=right_img, mode='L')
-        right_img = Image.fromarray(obj=right_img)
+        # right_img = Image.fromarray(obj=right_img)
 
         foot_dataset['left'].append(left_img)
         foot_dataset['right'].append(right_img)
@@ -721,58 +736,121 @@ def gsc_norm(target, smm, vmin, vmax):
 
 
 def accgyr_vti(dataset):
-    minmax = (0, 255)
-    left_data = dataset[0].values.astype(int)
-    right_data = dataset[1].values.astype(int)
+    minmax = (-1, 1)
+    left_data = dataset[0].values
+    right_data = dataset[1].values
+
+    w, h = dataset[0].values.shape
+    nan_cleaner = w
+    for idx in range(w):
+        nan_state = False
+        for jdx in range(h):
+            if str(left_data[idx, jdx]) == 'nan' or str(right_data[idx, jdx]) == 'nan':
+                nan_state = True
+        if nan_state is True:
+            nan_cleaner -= 1
+
+    left_data = dataset[0].values[:nan_cleaner, :].astype(int)
+    right_data = dataset[1].values[:nan_cleaner, :].astype(int)
     if left_data.shape[0] != left_data.shape[0]:
         min_sample = min(left_data.shape[0], right_data.shape[0])
         left_data = left_data[:min_sample]
         right_data = left_data[:min_sample]
-    sample_len = len(dataset[0].as_matrix())
+    sample_len = left_data.shape[0]
     sample_col = left_data.shape[1]
 
     if sample_len < 500:
         return 0
 
+    nan_cleaner = sample_len
+    for idx in range(sample_len):
+        nan_state = False
+        for jdx in range(sample_col):
+            if str(left_data[idx, jdx]) == 'nan' or str(right_data[idx, jdx]) == 'nan':
+                nan_state = True
+        if nan_state is True:
+            nan_cleaner -= 1
+
     foot_dataset = dict()
     foot_dataset['left'] = list()
     foot_dataset['right'] = list()
 
-    left_img = np.zeros([sample_len, 3])
-    right_img = np.zeros([sample_len, 3])
+    left_img = np.zeros([nan_cleaner, 3])
+    right_img = np.zeros([nan_cleaner, 3])
 
     for jdx in range(sample_col):
         lmin = min(left_data[:, jdx])
         lmax = max(left_data[:, jdx])
         rmin = min(right_data[:, jdx])
         rmax = max(right_data[:, jdx])
-        for idx in range(sample_len):
+        for idx in range(nan_cleaner):
             left_img[idx, jdx] = gsc_norm(left_data[idx, jdx], minmax, lmin, lmax)
             right_img[idx, jdx] = gsc_norm(right_data[idx, jdx], minmax, rmin, rmax)
+
+    left_img = Image.fromarray(left_img)
+    right_img = Image.fromarray(right_img)
 
     foot_dataset['left'].append(left_img)
     foot_dataset['right'].append(right_img)
     return foot_dataset
 
 
-def save_vti(dataset, sensor_name, people_nb, class_nb):
-    folder_dir = '../Datasets/img'
+def save_vti(dataset, sensor_name, people_nb, class_nb, param):
+    folder_dir = '../Datasets/vti'
+    if os.path.exists(folder_dir) is not True:
+        os.mkdir(folder_dir)
 
     left_dataset = dataset['left']
     right_dataset = dataset['right']
 
-    for idx, target in enumerate([folder_dir, sensor_name, f'{people_nb}_{class_nb}' ]):
+    for idx, target in enumerate([folder_dir, param.datatype, sensor_name, f'{people_nb}_{class_nb}' ]):
         if idx == 0:
             save_dir = target
             if os.path.exists(save_dir) is not True:
                 os.mkdir(save_dir)
         else:
             save_dir = os.path.join(save_dir, target)
-            if os.path.exists(save_dir):
+            if os.path.exists(save_dir) is not True:
                 os.mkdir(save_dir)
+    print(f'{idx}: {target}, save directory : {save_dir} state : {os.path.exists(save_dir)}')
 
     for idx, (left, right) in enumerate(zip(left_dataset, right_dataset)):
         left_dir = os.path.join(save_dir, 'left')
         right_dir = os.path.join(save_dir, 'right')
-        left.save(os.path.join(left_dir, f'{idx}.png'))
-        right.save(os.path.join(right_dir, f'{idx}.png'))
+        if os.path.exists(left_dir) is not True:
+            os.mkdir(left_dir)
+        if os.path.exists(right_dir) is not True:
+            os.mkdir(right_dir)
+        cv2.imwrite(os.path.join(left_dir, f'{idx}.png'), left)
+        cv2.imwrite(os.path.join(right_dir, f'{idx}.png'), right)
+
+
+def save_dataset_with_vti(dataset, sensor_name, people_nb, class_nb, param):
+    folder_dir = '../Datasets/vti'
+    if os.path.exists(folder_dir) is not True:
+        os.mkdir(folder_dir)
+
+    left_dataset = dataset['left']
+    right_dataset = dataset['right']
+
+    for idx, target in enumerate([folder_dir, param.datatype, sensor_name, f'{people_nb}_{class_nb}' ]):
+        if idx == 0:
+            save_dir = target
+            if os.path.exists(save_dir) is not True:
+                os.mkdir(save_dir)
+        else:
+            save_dir = os.path.join(save_dir, target)
+            if os.path.exists(save_dir) is not True:
+                os.mkdir(save_dir)
+    print(f'{target}, save directory : {save_dir} state : {os.path.exists(save_dir)}')
+
+    for idx, (left, right) in enumerate(zip(left_dataset, right_dataset)):
+        left_dir = os.path.join(save_dir, 'left')
+        right_dir = os.path.join(save_dir, 'right')
+        if os.path.exists(left_dir) is not True:
+            os.mkdir(left_dir)
+        if os.path.exists(right_dir) is not True:
+            os.mkdir(right_dir)
+        np.save(os.path.join(left_dir, f'{idx}.npy'), left)
+        np.save(os.path.join(right_dir, f'{idx}.npy'), right)
+

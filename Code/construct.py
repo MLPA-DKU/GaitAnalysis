@@ -591,25 +591,39 @@ def convert(param):
             savemat(os.path.join(test_dir, file_name), test_dict)
 
 
+def vector_to_embed(param):
+    print(f"{dt()} :: Vector to Embed")
+
+
 def vector_to_img(param):
-    NotImplemented
     print(f"{dt()} :: Create Initialize")
     datasets = loader.create_loader(param)
     nb_comb = 1
+    pn_collect = list()
+    cn_collect = list()
+    data_collect = list()
 
     dc = dict()
     for key, files in datasets.items():
         files = sorted(files)
         param.key = key
-        class_collect = list()
 
         for file in files:
-            vti_configuration(param, file, nb_comb)
             # class_collect.append(output)
-        # dc[key] = class_collect
-        # print(f"{dt()} :: --Combine Number : {nb_comb} Save Initialize")
-        # cc.save_datasets(param, dc, nb_comb)
-        # print(f"{dt()} :: --Done")
+            if param.model_name == 'create':
+                pressure, acc, gyro, peo_nb, class_nb = vti_configuration(param, file, nb_comb)
+                cc.save_vti(pressure, 'pressure', peo_nb, class_nb, param)
+                cc.save_dataset_with_vti(acc, 'acc', peo_nb, class_nb, param)
+                cc.save_dataset_with_vti(gyro, 'gyro', peo_nb, class_nb, param)
+            else:
+                pressure, acc, gyro, peo_nb, class_nb = vti_configuration(param, file, nb_comb)
+
+            pn_collect.append(int(peo_nb))
+            cn_collect.append(int(class_nb))
+            dataset = [pressure, acc, gyro]
+            data_collect.append(dataset)
+
+    preprocessing.vti_preprocess(param, pn_collect, cn_collect, data_collect)
 
 
 def vti_configuration(param, file, nb_comb):
@@ -623,7 +637,7 @@ def vti_configuration(param, file, nb_comb):
     gyro = cc.accgyr_vti(gyro)
     # cc.gyro_vti(gyro)
     # return [file, vectorized]
-    return 0
+    return pressure, acc, gyro, peo_nb, class_nb
 
 
 if __name__ == "__main__":
