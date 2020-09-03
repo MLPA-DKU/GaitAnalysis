@@ -315,6 +315,145 @@ def deep_learning_experiment_custom(param, train, test, label_info):
         sess.close()
 
 
+def deep_learning_experiment_vector(param, train, test, label_info):
+    nb_class = label_info[0]
+    nb_people = label_info[1]
+    param.nb_modal = 3
+
+    if param.method == method_info['people']:
+        nb_repeat = nb_people
+    elif param.method in method_info['repeat']:
+        nb_repeat = 20
+    elif param.method in method_info["CrossValidation"]:
+        nb_repeat = param.collect["CrossValidation"] * 5
+
+    # config = tf.ConfigProto()
+    # config.gpu_options.allow_growth = True
+    for repeat in range(nb_repeat):
+
+        print(f"{dt()} :: {repeat+1}/{nb_repeat} experiment progress")
+
+        tartr = train[repeat]
+        tarte = test[repeat]
+
+        tr_data = [tartr["data_0"], tartr["data_1"], tartr["data_2"]]
+        te_data = [tarte["data_0"], tarte["data_1"], tarte["data_2"]]
+        if param.datatype == "type":
+            tr_label = tartr["tag"] - 1
+            te_label = tarte["tag"] - 1
+            nb_class = label_info[0]
+        elif param.datatype == "disease":
+            tr_label = tartr["tag"]
+            te_label = tarte["tag"]
+            nb_class = label_info[0]
+
+        cat_tr = preprocessing.to_categorical(tr_label, nb_class)
+        cat_te = preprocessing.to_categorical(te_label, nb_class)
+
+        model = model_compactor.model_setting(param, train[repeat], test[repeat], [nb_class, nb_people])
+        print(f"{dt()} :: MODEL={param.model_name}, METHOD={param.method}")
+
+        log_dir = f"../Log/{param.model_name}_{param.method}"
+        # log_dir = f"/home/blackcow/mlpa/workspace/gait-rework/gait-rework/Log/{param.model_name}_{param.method}"
+
+        # tb_hist = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=0, write_graph=True, write_images=True)
+
+        # # model.summary()
+        # model_result = model.fit(x=tr_data, y=cat_tr, epochs=param.epochs, batch_size=param.batch_size
+        #                          , validation_data=(te_data, cat_te), verbose=2, callbacks=[tb_hist])
+
+        # model_score = model.evaluate(x=te_data, y=cat_te, verbose=0)
+
+        while True:
+            x_train1 = list()
+            x_train2 = list()
+            x_train3 = list()
+
+            y_train = list()
+
+            print(f"total batch : {len(tr_data[0]) // param.batch_size}")
+            for i in range(len(tr_data[0]) // param.batch_size):
+                x_batch1 = tr_data[0][i*param.batch_size: (i+1)*param.batch_size]
+                x_batch2 = tr_data[1][i*param.batch_size: (i+1)*param.batch_size]
+                x_batch3 = tr_data[2][i*param.batch_size: (i+1)*param.batch_size]
+
+                x_train1.append(x_batch1)
+                x_train2.append(x_batch2)
+                x_train3.append(x_batch3)
+                y_train.append(cat_tr[i*param.batch_size: (i+1)*param.batch_size])
+
+            model.summary()
+            optimizer = tf.optimizers.Adam(lr=0.0001)
+            loss_object = tf.keras.losses.CategoricalCrossentropy()
+            fin_loss_object = tf.keras.losses.CategoricalCrossentropy()
+
+            train_loss = tf.keras.metrics.Mean(name='train_loss')
+            train_accuracy = tf.keras.metrics.CategoricalAccuracy(name='train_accuracy')
+
+            test_loss = tf.keras.metrics.Mean(name='test_loss')
+            test_accuracy = tf.keras.metrics.CategoricalAccuracy(name='test_accuracy')
+
+            for epoch in range(param.epochs):
+
+                for step, (x_batch1, x_batch2, x_batch3, y_batch) in enumerate(zip(x_train1, x_train2, x_train3, y_train)):
+                    # predicted = model.predict([x_batch1, x_batch2, x_batch3])
+
+                    with tf.GradientTape() as tape:
+                        logits = model([x_batch1, x_batch2, x_batch3])
+
+                        loss_val1 = loss_object(y_batch, logits[0])
+                        loss_val2 = loss_object(y_batch, logits[1])
+                        loss_val3 = loss_object(y_batch, logits[2])
+
+                        true_loss = tf.math.add(logits[0]*0.3, logits[1]*0.3, logits[2]*0.3)
+                        true_loss = fin_loss_object(y_batch, logits[6])
+                    # gen = model.train_on_batch(, [y_batch, y_batch, y_batch])
+                    # print(f'train_loss : {gen}')
+
+                    grads = tape.gradient(true_loss, model.trainable_variables)
+                    optimizer.apply_gradients((grads, var) for (grads, var)
+                                              in zip(grads, model.trainable_variables) if grads is not None)
+
+                    tr_loss = train_loss(true_loss)
+                    tr_acc1 = train_accuracy(y_batch, logits[0])
+                    tr_acc2 = train_accuracy(y_batch, logits[1])
+                    tr_acc3 = train_accuracy(y_batch, logits[2])
+
+                    tr_acc4 = train_accuracy(y_batch, logits[6])
+
+                    sim_images = np.reshape(logits[3], (-1, 128, 128, 1))
+                    logdir = f"../Log/similarity_matrix/{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
+                    file_writer = tf.summary.create_file_writer(logdir)
+                    with file_writer.as_default():
+                        tf.summary.scalar("train_loss", tr_loss, step=epoch)
+                        tf.summary.scalar("train_acc", tr_acc4, step=epoch)
+                        tf.summary.image("Similarity Matrix", sim_images, step=epoch, max_outputs=12)
+
+                    print(f'[step : {step}/{len(x_train1)}] [epochs : {epoch}/{param.epochs}]'
+                          f'train loss : {tr_loss}, domain 1-3_accuracy : {tr_acc1*100}, {tr_acc2*100}, {tr_acc3*100}')
+                    print(f'train merge acc : {tr_acc4*100} test loss : not implemented...')
+
+            model.evaluate([te_data[0], te_data[1], te_data[2]])
+
+        if repeat == 0:
+            tracking = [dt(), param.method, param.model_name, param.nb_combine, repeat, model_score[0], model_score[1]]
+            ds.stock_result(tracking)
+        else:
+            tracking = [dt(), repeat, model_score[0], model_score[1]]
+            ds.stock_result(tracking)
+
+        ds.save_result_obo(param, tracking)
+
+        model_result = None
+        model_score = None
+        tracking = None
+        tr_data = None
+        te_date = None
+        K.clear_session()
+        tf.keras.backend.clear_session()
+        sess.close()
+
+
 def machine_learning_experiment_configuration(param, train, test, label_info):
     nb_class = label_info[0]
     nb_people = label_info[1]

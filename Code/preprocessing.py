@@ -7,6 +7,7 @@ import time
 import Code.method_collector as mc
 import Code.create_collector as cc
 import cv2
+import math
 
 
 def to_categorical_unit(target, nb_class):
@@ -172,3 +173,49 @@ def normalize_all_of_length(param, datasets):
 def vti_preprocess(param, pns, cns, datasets):
     for pn, cn, dataset in zip(pns, cns, datasets):
         print(pn, cn)
+
+
+def complementry_filter(acc, gyro):
+    # angle = 0.98 * (previous angle +_ gyroData * dt) + 0.02 * (accData)
+    pi = 3.14159
+    rad_to_deg = 180 / pi
+    alpha = 0.98
+    gyro_anglel = 0
+    gyro_angler = 0
+    dt = 1
+    w, h = acc.shape
+    acclx = np.sum(acc[0, :]) / w
+    accly = np.sum(acc[1, :]) / w
+    acclz = np.sum(acc[2, :]) / w
+    accrx = np.sum(acc[3, :]) / w
+    accry = np.sum(acc[4, :]) / w
+    accrz = np.sum(acc[5, :]) / w
+
+    gylx = np.sum(gyro[0, :]) / w
+    gyly = np.sum(gyro[1, :]) / w
+    gylz = np.sum(gyro[2, :]) / w
+    gyrx = np.sum(gyro[3, :]) / w
+    gyry = np.sum(gyro[4, :]) / w
+    gyrz = np.sum(gyro[5, :]) / w
+
+    for i in enumerate(range(w)):
+        acc[i, 0] -= acclx
+        acc[i, 1] -= accly
+        acc[i, 2] -= acclz
+        acc[i, 3] -= accrx
+        acc[i, 4] -= accry
+        acc[i, 5] -= accrz
+
+        angle_acc_y = math.atan2(-acc[i, 0] / np.sqrt(pow(acc[i, 1], 2) + pow(acc[i, 2], 2))) * rad_to_deg
+        angle_acc_x = math.atan2(acc[i, 1] / np.sqrt(pow(acc[i, 0], 2) + pow(acc[i, 2], 2))) * rad_to_deg
+        angle_acc_z = 0
+
+        gyro /= 131
+        dgyl_x = gyro[i, 1]
+        dgyl_y = gyro[i, 2]
+        dgyl_z = gyro[i, 3]
+        dgyr_x = gyro[i, 4]
+        dgyr_y = gyro[i, 5]
+        dgyr_z = gyro[i, 6]
+
+        gyro_anglel = (0.95 * (gyro_anglel + (dgyl_x * 0.001))) + (0.05 * angle_acc_x)
