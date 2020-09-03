@@ -77,6 +77,8 @@ def method_collect(param, comb, datasets):
         return mc.method_MCCV(param, comb, datasets)
     elif param.method == "7CV" or param.method == "MCCV":
         return mc.method_CV(param, comb, datasets)
+    elif param.method == "div_vec":
+        return mc.method_vec(param, comb, datasets)
 
 
 # sort people number
@@ -219,3 +221,96 @@ def complementry_filter(acc, gyro):
         dgyr_z = gyro[i, 6]
 
         gyro_anglel = (0.95 * (gyro_anglel + (dgyl_x * 0.001))) + (0.05 * angle_acc_x)
+
+
+def vector_merge(datasets, class_count):
+    merged_pressure = np.array([])
+    merged_accl = np.array([])
+    merged_accr = np.array([])
+    merged_gyrl = np.array([])
+    merged_gyrr = np.array([])
+    dataset_info = np.array([])
+
+    if min(class_count) == 0:
+        np.add(class_count, 1)
+    peo_length = len(datasets.keys())
+    for enum_idx, [peo_nb, [class_nb, dataset]] in enumerate(datasets.items()):
+        if min(class_count) == 0:
+            class_nb += 1
+
+        [pressure, acc, gyro] = dataset
+        clear_length = 0
+        for foot in range(2):
+            tpre = np.array(pressure[foot])
+            tacc = np.array(acc[foot])
+            tgyr = np.array(gyro[foot])
+
+            w, c = tpre.shape
+
+            nan_cleaner = w
+            for idx in range(w):
+                nan_state = False
+                for jdx in range(c):
+                    if str(tpre[idx, jdx]) == 'nan':
+                        nan_state = True
+                if nan_state is True:
+                    nan_cleaner -= 1
+
+            nan_sur1 = nan_cleaner
+
+            w, c = tacc.shape
+            nan_cleaner = w
+            for idx in range(w):
+                nan_state = False
+                for jdx in range(c):
+                    if str(tacc[idx, jdx]) == 'nan':
+                        nan_state = True
+                if nan_state is True:
+                    nan_cleaner -= 1
+
+            nan_sur2 = nan_cleaner
+
+            w, c = tgyr.shape
+            nan_cleaner = w
+            for idx in range(w):
+                nan_state = False
+                for jdx in range(c):
+                    if str(tgyr[idx, jdx]) == 'nan':
+                        nan_state = True
+                if nan_state is True:
+                    nan_cleaner -= 1
+
+            nan_sur3 = nan_cleaner
+
+            nan_cleaner = min(nan_sur1, nan_sur2, nan_sur3)
+
+            if clear_length < nan_cleaner:
+                clear_length = nan_cleaner
+
+        labels = np.zeros([clear_length, 3])
+        labels[:, 0].fill(int(peo_nb))
+        labels[:, 1].fill(enum_idx)
+        labels[:, 2].fill(class_nb)
+
+        for idx, [tpre, tacc, tgyr] in enumerate(zip(pressure, acc, gyro)):
+            pressure[idx] = np.array(tpre)[:clear_length, :].astype(np.int)
+            acc[idx] = np.array(tacc)[:clear_length, :].astype(np.int)
+            gyro[idx] = np.array(tgyr)[:clear_length, :].astype(np.int)
+
+        if enum_idx == 0:
+            merged_pressure = np.hstack([pressure[0], pressure[1]])
+            merged_accl = acc[0]
+            merged_accr = acc[1]
+            merged_gyrl = gyro[0]
+            merged_gyrr = gyro[1]
+            dataset_info = labels
+        else:
+            temp_pressure = np.hstack([pressure[0], pressure[1]])
+            merged_pressure = np.vstack([merged_pressure, temp_pressure])
+            merged_accl = np.vstack([merged_accl, acc[0]])
+            merged_accr = np.vstack([merged_accr, acc[1]])
+            merged_gyrl = np.vstack([merged_gyrl, gyro[0]])
+            merged_gyrr = np.vstack([merged_gyrr, gyro[1]])
+            dataset_info = np.vstack([dataset_info, labels])
+
+    return [merged_pressure, merged_accl, merged_accr, merged_gyrl, merged_gyrr, dataset_info]

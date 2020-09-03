@@ -1,9 +1,9 @@
 {
-  "object" : "experiment",
+  "object" : "vti",
   "dataset" : "disease",
-  "method": "div_vec",
+  "method": "no_noise",
   "model": "div_vec",
-  "folder": "200807_vec",
+  "folder": "200807_vti",
   "collect": {
     "sensor_type": ["pressure", "acc", "gyro"],
     "sensor_number": {

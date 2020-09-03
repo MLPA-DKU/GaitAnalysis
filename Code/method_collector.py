@@ -8,7 +8,8 @@ method_info = {
     'specific': ['cropping', 'convert'],
     '4columns': ['BasicNet', 'ResNet', 'VGG'],
     '3columns': ['base', 'lstm', 'bi-lstm', 'lstm_attention', 'cnn_lstm', 'similarity'],
-    '2columns': ['lgbm']
+    '2columns': ['lgbm'],
+    'vector': ['div_vec']
 }
 
 
@@ -339,6 +340,36 @@ def method_CV(param, comb, datasets):
     return sample_train, sample_test, nb_tag, nb_people
 
 
+def method_vec(param, comb, datasets):
+
+    BaseDivideProcess(param.method, param.model_name, dataset=datasets)
+    if param.datatype == "disease":
+        BaseDivideProcess.nb_class += 1
+    divide_process = NotImplemented
+    sampling_data = divide_process.sampling()
+
+    sample_train = sampling_data["train"]
+    sample_test = sampling_data["test"]
+
+    for repeat in range(len(sample_train)):
+        train = sample_train[repeat]
+        test = sample_test[repeat]
+
+        for nb in range(3):
+            train[f"data_{nb}"] = divide_process.convert(data=train[f"data_{nb}"],
+                                                         mt=param.collect["minimum_threshold"], comb=comb)
+            test[f"data_{nb}"] = divide_process.convert(data=test[f"data_{nb}"],
+                                                        mt=param.collect["minimum_threshold"], comb=comb)
+
+        sample_train[repeat] = train
+        sample_test[repeat] = test
+
+    nb_tag = divide_process.nb_class
+    nb_people = divide_process.nb_people
+
+    return sample_train, sample_test, nb_tag, nb_people
+
+
 # Base Divide Process Class
 class BaseDivideProcess:
     def __init__(self, mode, model_name, dataset):
@@ -384,6 +415,8 @@ class BaseDivideProcess:
         elif self.model_name in method_info['2columns']:
             converted = data
         elif self.model_name in method_info['specific']:
+            converted = data
+        elif self.model_name in method_info['vector']:
             converted = data
         return converted
 
@@ -1209,7 +1242,6 @@ class seven_CVDP(BaseDivideProcess):
 
 # Selected Cross Validation sampling Class
 class select_CVDP(BaseDivideProcess):
-    NotImplemented
     """
         mdpi sampling
     """
@@ -1267,5 +1299,74 @@ class select_CVDP(BaseDivideProcess):
 
                 total_dataset["train"].append(train_dict)
                 total_dataset["test"].append(test_dict)
+
+        return total_dataset
+
+
+# Base Divide Process Class
+class BaseVectorDivideProcess:
+    def __init__(self, mode, model_name, dataset):
+        assert len(dataset) == 3, "dataset must be 3 arguments"
+        pressure, accl, accr, gyrl, gyrr, info = dataset
+
+        # [data1, data2, data3] = pp.sort_by_people(dataset)
+
+        # sampling func name
+        self.mode = mode
+        # used model name
+        self.model_name = model_name
+
+        self.dataset = dataset
+        self.real_plabel = info[:, 0]
+        self.plabel = info[:, 1]
+        self.tlabel = info[:, 2]
+
+        # dataset index
+        self.pressure = pressure
+        self.acc = [accl, accr]
+        self.gyro = [gyrl, gyrr]
+
+        self.nb_class = int(max(self.tlabel))
+        self.nb_people = int(max(self.plabel)) + 1
+
+    def sampling(self):
+        pass
+
+    def convert(self, data, mt, comb):
+        # need to update
+        drow, dcol = data.shape
+        input_shape = (int(mt * comb), int((dcol) / (mt * comb)))
+        if self.model_name in method_info['4columns']:
+            converted = data.reshape(-1, input_shape[0], input_shape[1], 1)
+        elif self.model_name == "pVGG":
+            data = data.reshape(-1, input_shape[0], input_shape[1])
+            converted = np.zeros((data.shape[0], data.shape[1], data.shape[2], 3))
+            for idx in range(3):
+                converted[:, :, :, idx] = data
+        elif self.model_name in method_info['3columns']:
+            converted = data.reshape(-1, input_shape[0], input_shape[1])
+        elif self.model_name in method_info['2columns']:
+            converted = data
+        elif self.model_name in method_info['specific']:
+            converted = data
+        elif self.model_name in method_info['vector']:
+            converted = data
+        return converted
+
+
+class method_as_vector(BaseDivideProcess):
+    """
+            convert vector method
+    """
+
+    def __init__(self, mode, model_name, dataset, rsub):
+        super().__init__(mode, model_name, dataset)
+        print(f"{datetime.datetime.now()} :: Divide Process : {self.mode}")
+
+    def sampling(self):
+
+        total_dataset = dict()
+        total_dataset["train"] = list()
+        total_dataset["test"] = list()
 
         return total_dataset

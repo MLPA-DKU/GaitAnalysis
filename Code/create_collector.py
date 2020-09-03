@@ -853,4 +853,3 @@ def save_dataset_with_vti(dataset, sensor_name, people_nb, class_nb, param):
             os.mkdir(right_dir)
         np.save(os.path.join(left_dir, f'{idx}.npy'), left)
         np.save(os.path.join(right_dir, f'{idx}.npy'), right)
-

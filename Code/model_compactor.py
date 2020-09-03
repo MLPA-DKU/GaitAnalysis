@@ -12,10 +12,12 @@ from Code.Model import bidirectinal_lstm_model as bilstm
 from Code.Model import lightGBM_model as lgbm
 from Code.Model import cropNet_model as crop
 from Code.Model import self_similarity as ss
+from Code.Model import divide_vector_model as div_vec
 
 model_info = {
     'dl': ['BasicNet', 'ResNet', 'VGG', 'pVGG', 'base', 'lstm', 'bi-lstm', 'cnn_lstm'],
     'c_dl': ['similarity', 'lstm_attention'],
+    'v_dl': ['div_vec'],
     'ml': ['lgbm']
 }
 
@@ -91,4 +93,6 @@ def model_setting(param, train, test, label_info):
             _, row, col = train[f"data_{i}"].shape
             shape_list.append((row, col))
         model = ss.self_similarity_network_conv2d(shape_list=shape_list, comb_degree=param.nb_combine)
+    elif model == 'div_vec':
+        model = div_vec.divide_network(shape_list=shape_list, comb_degree=param.nb_combine)
     return model

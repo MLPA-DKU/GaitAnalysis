@@ -87,13 +87,23 @@ def experiment(param, comb_degree=5):
         if nb_combine != 1:
             continue
 
-        datasets = loader.data_loader(param, target=nb_combine)
-        train, test, nb_class, nb_people = preprocessing.chosen_method(param=param, comb=nb_combine, datasets=datasets)
         if param.model_name in model_compactor.model_info['dl']:
+            datasets = loader.data_loader(param, target=nb_combine)
+            train, test, nb_class, nb_people = preprocessing.chosen_method(param=param, comb=nb_combine,
+                                                                           datasets=datasets)
             deep_learning_experiment_configuration(param, train, test, [nb_class, nb_people])
             ds.save_result(param)
         elif param.model_name in model_compactor.model_info['c_dl']:
+            datasets = loader.data_loader(param, target=nb_combine)
+            train, test, nb_class, nb_people = preprocessing.chosen_method(param=param, comb=nb_combine,
+                                                                           datasets=datasets)
             deep_learning_experiment_custom(param, train, test, [nb_class, nb_people])
+            ds.save_result(param)
+        elif param.model_name in model_compactor.model_info['v_dl']:
+            datasets = loader.vector_loader(param)
+            train, test, nb_class, nb_people = preprocessing.chosen_method(param=param, comb=1,
+                                                                           datasets=datasets)
+            deep_learning_experiment_vector(param, train, test, [nb_class, nb_people])
             ds.save_result(param)
 
 

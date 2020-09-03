@@ -3,6 +3,8 @@ import os
 import numpy as np
 import datetime
 import csv
+from Code.create_collector import vti_init
+from Code.preprocessing import vector_merge
 
 
 def path_loader(target):
@@ -84,7 +86,6 @@ def vti_loader(param):
                      if os.path.isdir(os.listdir(os.path.join(data_dir, 'pressure', folder)))]
 
 
-
 def create_loader(param):
     data_dir = f"../Raw/{param.datatype}"
 
@@ -112,3 +113,40 @@ def create_loader(param):
                 dataset[key].append(file_names)
 
     return dataset
+
+
+def vector_loader(param):
+    data_dir = f'../Raw/{param.datatype}'
+    rsub = param.collect["remover"]
+    directories = [folder for folder in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, folder))]
+    if param.datatype == "type":
+        directories = sorted(directories)
+    dataset = dict()
+    collected = dict()
+    class_count = list()
+
+    for folder_name in directories:
+        dataset[folder_name] = list()
+
+    for key in dataset.keys():
+        folder_dir = os.path.join(data_dir, key)
+        files_collecter = [file for file in os.listdir(folder_dir) if file.endswith(".csv")]
+        for files in files_collecter:
+            if files in rsub:
+                continue
+            else:
+                file_names = os.path.join(folder_dir, files)
+                dataset[key].append(file_names)
+    for key, files in dataset.items():
+        for idx, file in enumerate(files):
+            # class_name = file.split('/')[-2]
+            peo_nb, class_text = file.split('/')[-1].split('_')
+            class_nb = class_text.split('.')[0]
+            class_count.append(int(class_nb))
+            # left, right
+            pressure, acc, gyro = vti_init(param, file)
+            collected[int(peo_nb)] = [int(class_nb), [pressure, acc, gyro]]
+
+    return vector_merge(collected, list(set(class_count)))
+
+
