@@ -6,8 +6,9 @@ import Code.preprocessing as pp
 
 method_info = {
     'specific': ['cropping', 'convert'],
+    '5columns': ['div_base'],
     '4columns': ['BasicNet', 'ResNet', 'VGG'],
-    '3columns': ['base', 'lstm', 'bi-lstm', 'lstm_attention', 'cnn_lstm', 'similarity'],
+    '3columns': ['base', 'lstm', 'bi-lstm', 'lstm_attention', 'cnn_lstm', 'similarity', 'base_v2', 'ensemble'],
     '2columns': ['lgbm'],
     'vector': ['div_vec']
 }
@@ -418,6 +419,11 @@ class BaseDivideProcess:
             converted = data
         elif self.model_name in method_info['vector']:
             converted = data
+        elif self.model_name in method_info['5columns']:
+            if input_shape[1] == 6:
+                left_data = data[:, :3]
+                right_data = data[:, 3:]
+                converted = [left_data.reshape(-1, input_shape[0], 3), right_data.reshape(-1, input_shape[0], 3)]
         return converted
 
 

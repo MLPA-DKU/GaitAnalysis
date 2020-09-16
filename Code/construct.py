@@ -18,10 +18,10 @@ from Code.result_collector import column_info, directory, DataStore
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser(description="Gait Analysis Project")
-parser.add_argument('--json', type=str, default="vector_to_image", help='collector file')
+parser.add_argument('--json', type=str, default="ensemble_base_type", help='collector file')
 parser.add_argument('--Header', type=str, default="not used...", help='output header')
-parser.add_argument('--batch_size', type=int, default=16, help='batch_size default=64')
-parser.add_argument('--epochs', type=int, default=200, help='epochs default=20')
+parser.add_argument('--batch_size', type=int, default=64, help='batch_size default=64')
+parser.add_argument('--epochs', type=int, default=20, help='epochs default=20')
 args = parser.parse_args()
 
 method_info = {
@@ -75,6 +75,8 @@ def chosen_object(object_name):
         convert(params)
     elif object_name == "vti":
         vector_to_img(params)
+    elif object_name == "ensemble":
+        experiment(params, comb_degree=5)
 
 
 # experiment
@@ -104,6 +106,12 @@ def experiment(param, comb_degree=5):
             train, test, nb_class, nb_people = preprocessing.chosen_method(param=param, comb=1,
                                                                            datasets=datasets)
             deep_learning_experiment_vector(param, train, test, [nb_class, nb_people])
+            ds.save_result(param)
+        elif param.object == 'ensemble':
+            datasets = loader.data_loader(param)
+            train, test, nb_class, nb_people = preprocessing.chosen_method(param=param, comb=1,
+                                                                           datasets=datasets)
+            deep_learning_experiment_ensemble(param, train, test, [nb_class, nb_people])
             ds.save_result(param)
 
 
@@ -462,6 +470,124 @@ def deep_learning_experiment_vector(param, train, test, label_info):
         K.clear_session()
         tf.keras.backend.clear_session()
         sess.close()
+
+
+def deep_learning_experiment_ensemble(param, train, test, label_info):
+    nb_class = label_info[0]
+    nb_people = label_info[1]
+    param.nb_modal = 3
+
+    if param.method == method_info['people']:
+        nb_repeat = nb_people
+    elif param.method in method_info['repeat']:
+        nb_repeat = 20
+    elif param.method in method_info["CrossValidation"]:
+        nb_repeat = param.collect["CrossValidation"] * 5
+
+    # config = tf.ConfigProto()
+    # config.gpu_options.allow_growth = True
+    for repeat in range(nb_repeat):
+        # config = tf.compat.v1.ConfigProto()
+
+        # sess = tf.Session(config=config)
+        # use GPU memory in the available GPU memory capacity
+
+        # sess = tf.compat.v1.Session(config=config)
+        # set_session(sess)
+
+        print(f"{dt()} :: {repeat+1}/{nb_repeat} experiment progress")
+
+        tartr = train[repeat]
+        tarte = test[repeat]
+
+        tr_data = [tartr["data_0"], tartr["data_1"], tartr["data_2"]]
+        te_data = [tarte["data_0"], tarte["data_1"], tarte["data_2"]]
+        if param.datatype == "type":
+            tr_label = tartr["tag"] - 1
+            te_label = tarte["tag"] - 1
+            nb_class = label_info[0]
+        elif param.datatype == "disease":
+            tr_label = tartr["tag"]
+            te_label = tarte["tag"]
+            nb_class = label_info[0]
+
+        cat_tr = preprocessing.to_categorical(tr_label, nb_class)
+        cat_te = preprocessing.to_categorical(te_label, nb_class)
+
+        model1, model2 = model_compactor.model_setting(param, train[repeat], test[repeat], [nb_class, nb_people])
+        print(f"{dt()} :: MODEL={param.model_name}, METHOD={param.method}")
+
+        log_dir = f"../Log/{param.model_name}_{param.method}"
+        # log_dir = f"/home/blackcow/mlpa/workspace/gait-rework/gait-rework/Log/{param.model_name}_{param.method}"
+
+        tb_hist = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=0, write_graph=True, write_images=True)
+
+        print(f"{dt()} :: Train Sample : {len(tr_data[0])}, Test Sample : {len(te_data[0])}")
+
+        model1.summary()
+        model1.fit(x=tr_data, y=cat_tr, epochs=param.epochs, batch_size=param.batch_size
+                                 , validation_data=(te_data, cat_te), verbose=2, callbacks=[tb_hist])
+
+        model2.summary()
+        model2.fit(x=tr_data, y=cat_tr, epochs=param.epochs, batch_size=param.batch_size
+                                 , validation_data=(te_data, cat_te), verbose=2, callbacks=[tb_hist])
+
+        model1_score = model1.evaluate(x=te_data, y=cat_te, verbose=0)
+        print(f"{dt()} :: Test Loss :{model1_score[0]}")
+        print(f"{dt()} :: Test Accuracy :{model1_score[1]}")
+
+        model2_score = model2.evaluate(x=te_data, y=cat_te, verbose=0)
+        print(f"{dt()} :: Test Loss :{model2_score[0]}")
+        print(f"{dt()} :: Test Accuracy :{model2_score[1]}")
+
+        def predict(model1, model2, data, categorical_y):
+            model1_predict = model1.predict(data)
+            model2_predict = model2.predict(data)
+
+            counter = np.zeros((3, 1), dtype=int)
+            for i in range(len(data[0])):
+                average_predictions = (model1_predict[i] + model2_predict[i]) / 2
+                model1_y = np.argmax(model1_predict[i])
+                model2_y = np.argmax(model2_predict[i])
+                avg_y = np.argmax(average_predictions)
+
+                if model1_y == np.argmax(categorical_y[i]): counter[0] += 1
+                if model2_y == np.argmax(categorical_y[i]): counter[1] += 1
+                if avg_y == np.argmax(categorical_y[i]): counter[2] += 1
+
+            model1_accuracy = counter[0] / len(tr_data[0])
+            model2_accuracy = counter[1] / len(tr_data[0])
+            ens_model_avg = counter[2] / len(tr_data[0])
+            print(f"{dt()} :: Ensemble Model 1 Accuracy : {model1_accuracy}")
+            print(f"{dt()} :: Ensemble Model 2 Accuracy : {model2_accuracy}")
+            print(f"{dt()} :: Ensemble AVG Accuracy : {ens_model_avg}")
+
+            return model1_accuracy, model2_accuracy, ens_model_avg
+
+        print(f"{dt()} :: Train Ensemble Result")
+        _, _, _ = predict(model1, model2, tr_data, cat_tr)
+        print(f"{dt()} :: Test Ensemble Result")
+        ens_model1, ens_model2, ens_avg = predict(model1, model2, te_data, cat_te)
+
+        tracking1 = [dt(), param.method, 'model1_cnn', param.nb_combine, repeat, model1_score[0], model1_score[1]]
+        tracking2 = [dt(), param.method, 'model2_lstm', param.nb_combine, repeat, model2_score[0], model2_score[1]]
+        tracking3 = [dt(), param.method, 'avg_ensemble', param.nb_combine, repeat,
+                     f"m1{ens_model1}_m2{ens_model2}", ens_avg]
+
+        ds.stock_result(tracking1)
+        ds.stock_result(tracking2)
+        ds.stock_result(tracking3)
+
+        ds.save_result_obo(param, tracking3)
+
+        model_result = None
+        model_score = None
+        tracking = None
+        tr_data = None
+        te_date = None
+        # K.clear_session()
+        tf.keras.backend.clear_session()
+        # sess.close()
 
 
 def machine_learning_experiment_configuration(param, train, test, label_info):
