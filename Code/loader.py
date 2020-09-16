@@ -31,7 +31,7 @@ def path_loader(target):
     return path_collector
 
 
-def data_loader(param, target=1):
+def data_loader(param, target):
     path_collector = path_loader(f'../Datasets/{param.folder}')
 
     collected_dataset = dict()

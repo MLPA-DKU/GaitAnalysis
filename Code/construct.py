@@ -84,10 +84,10 @@ def experiment(param, comb_degree=5):
     print(f"{dt()} :: Experiments Initialize")
 
     for nb_combine in range(1, comb_degree+1):
+        # if nb_combine < 1:
+        #     continue
         print(f"{dt()} :: {nb_combine} sample experiments")
         param.nb_combine = nb_combine
-        if nb_combine != 1:
-            continue
 
         if param.model_name in model_compactor.model_info['dl']:
             datasets = loader.data_loader(param, target=nb_combine)
@@ -108,8 +108,8 @@ def experiment(param, comb_degree=5):
             deep_learning_experiment_vector(param, train, test, [nb_class, nb_people])
             ds.save_result(param)
         elif param.object == 'ensemble':
-            datasets = loader.data_loader(param)
-            train, test, nb_class, nb_people = preprocessing.chosen_method(param=param, comb=1,
+            datasets = loader.data_loader(param, nb_combine)
+            train, test, nb_class, nb_people = preprocessing.chosen_method(param=param, comb=nb_combine,
                                                                            datasets=datasets)
             deep_learning_experiment_ensemble(param, train, test, [nb_class, nb_people])
             ds.save_result(param)
@@ -540,6 +540,18 @@ def deep_learning_experiment_ensemble(param, train, test, label_info):
         print(f"{dt()} :: Test Loss :{model2_score[0]}")
         print(f"{dt()} :: Test Accuracy :{model2_score[1]}")
 
+        if repeat == 0:
+            tracking = [dt(), param.method, param.model_name, param.nb_combine, repeat, model1_score[0], model1_score[1]]
+            ds.stock_result(tracking)
+            tracking = [dt(), param.method, param.model_name, param.nb_combine, repeat, model2_score[0], model2_score[1]]
+            ds.stock_result(tracking)
+        else:
+            tracking = [dt(), repeat, model1_score[0], model1_score[1]]
+            ds.stock_result(tracking)
+            tracking = [dt(), repeat, model2_score[0], model2_score[1]]
+            ds.stock_result(tracking)
+
+
         def predict(model1, model2, data, categorical_y):
             model1_predict = model1.predict(data)
             model2_predict = model2.predict(data)
@@ -646,6 +658,8 @@ def create(param):
     datasets = loader.create_loader(param)
 
     for nb_comb in range(1, 6):
+        if nb_comb == 1:
+            continue
         print(f"{dt()} :: Combine Number : {nb_comb}")
         dc = dict()
         for key, files in datasets.items():

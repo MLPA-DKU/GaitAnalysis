@@ -3,7 +3,7 @@
   "dataset" : "type",
   "method": "base",
   "model": "ensemble",
-  "folder": "200722_type",
+  "folder": "200916_type",
   "collect": {
     "sensor_type": ["pressure", "acc", "gyro"],
     "sensor_number": {

@@ -1,9 +1,9 @@
 {
-  "object" : "create_v2",
+  "object" : "create",
   "dataset" : "type",
-  "method": "add_noise",
+  "method": "None",
   "model": "all",
-  "folder": "200722",
+  "folder": "200916",
   "collect": {
     "sensor_type": ["pressure", "acc", "gyro"],
     "sensor_number": {
