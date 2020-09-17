@@ -2,6 +2,7 @@ import tensorflow as tf
 from keras.backend import set_session
 from keras import backend as K
 import keras
+from Code.dynamic_library import model_info
 from Code.Model import basic_10_network as BasicNet
 from Code.Model import resnet as ResNet
 from Code.Model import vgg_network as VGGNet
@@ -15,14 +16,6 @@ from Code.Model import cropNet_model as crop
 from Code.Model import self_similarity as ss
 from Code.Model import divide_vector_model as div_vec
 from Code.Model import divide_base_model as div_dcnn
-
-model_info = {
-    'dl': ['BasicNet', 'ResNet', 'VGG', 'pVGG', 'base', 'lstm', 'bi-lstm', 'cnn_lstm', 'base_v2', 'div_base'],
-    'c_dl': ['similarity', 'lstm_attention'],
-    'v_dl': ['div_vec'],
-    'ml': ['lgbm'],
-    'ensemble': ['ensemble']
-}
 
 
 def model_setting(param, train, test, label_info):

@@ -18,19 +18,6 @@
     },
     "combine_shape": "tri",
     "minimum_threshold" : 63,
-    "csv_columns_names" : {
-            "datasets": ["dates",
-                         "p1(L)", "p2(L)", "p3(L)", "p4(L)", "p5(L)", "p6(L)", "p7(L)", "p8(L)",
-                         "ACC_X(L)", "ACC_Y(L)", "ACC_Z(L)", "GYZO_X(L)", "GYZO_Y(L)", "GYZO_Z(L)",
-                         "p1(R)", "p2(R)", "p3(R)", "p4(R)", "p5(R)", "p6(R)", "p7(R)", "p8(R)",
-                         "ACC_X(R)", "ACC_Y(R)", "ACC_Z(R)", "GYZO_X(R)", "GYZO_Y(R)", "GYZO_Z(R)"],
-            "pressure" : ["p1(L)", "p2(L)", "p3(L)", "p4(L)", "p5(L)", "p6(L)", "p7(L)", "p8(L)",
-                         "p1(R)", "p2(R)", "p3(R)", "p4(R)", "p5(R)", "p6(R)", "p7(R)", "p8(R)"],
-            "acc" : ["ACC_X(L)", "ACC_Y(L)", "ACC_Z(L)", "ACC_X(R)", "ACC_Y(R)", "ACC_Z(R)"],
-            "gyro" : ["GYZO_X(L)", "GYZO_Y(L)", "GYZO_Z(L)", "GYZO_X(R)", "GYZO_Y(R)", "GYZO_Z(R)"],
-            "left_pressure" : ["p1(L)", "p2(L)", "p3(L)", "p4(L)", "p5(L)", "p6(L)", "p7(L)", "p8(L)"],
-            "right_pressure" : ["p1(R)", "p2(R)", "p3(R)", "p4(R)", "p5(R)", "p6(R)", "p7(R)", "p8(R)"]
-    },
     "remover": [],
     "select" : [10, -1]
   }

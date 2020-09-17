@@ -22,6 +22,7 @@
     },
     "combine_shape": "tri",  "minimum_threshold" : 63,
     "remover": [],
-    "CrossValidation": 7
+    "CrossValidation": 7,
+    "nb_modal": 7
   }
 }

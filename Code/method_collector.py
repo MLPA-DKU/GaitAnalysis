@@ -4,15 +4,6 @@ import datetime
 import time
 import Code.preprocessing as pp
 
-method_info = {
-    'specific': ['cropping', 'convert'],
-    '5columns': ['div_base'],
-    '4columns': ['BasicNet', 'ResNet', 'VGG'],
-    '3columns': ['base', 'lstm', 'bi-lstm', 'lstm_attention', 'cnn_lstm', 'similarity', 'base_v2', 'ensemble'],
-    '2columns': ['lgbm'],
-    'vector': ['div_vec']
-}
-
 
 def remove_subject(rsub):
     pn_list = list()

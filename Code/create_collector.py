@@ -1,6 +1,8 @@
 import os
 import numpy as np
 import pandas as pd
+
+from Code.dynamic_library import csv_columns_names
 import skimage.transform
 import cv2
 import datetime
@@ -9,12 +11,13 @@ from Code.utils import dt_printer as dt
 from PIL import Image, ImageDraw
 # from skimage.transform import resize as skiresize
 
+
 # Init
 def dataset_init(param, file):
-    data_column = param.collect["csv_columns_names"]["datasets"]
-    pressure_column = param.collect["csv_columns_names"]["pressure"]
-    left_column = param.collect["csv_columns_names"]["left_pressure"]
-    right_column = param.collect["csv_columns_names"]["right_pressure"]
+    data_column = csv_columns_names["datasets"]
+    pressure_column = csv_columns_names["pressure"]
+    left_column = csv_columns_names["left_pressure"]
+    right_column = csv_columns_names["right_pressure"]
 
     total_dataset = pd.read_csv(filepath_or_buffer=file
                                 , names=data_column, header=None, skiprows=1, encoding='utf7')
@@ -66,9 +69,9 @@ def get_unit_step_v2(data):
 
 # Sampling
 def get_index_sampling(param, data, step_index):
-    pressure_column = param.collect["csv_columns_names"]["pressure"]
-    acc_column = param.collect["csv_columns_names"]["acc"]
-    gyro_column = param.collect["csv_columns_names"]["gyro"]
+    pressure_column = csv_columns_names["pressure"]
+    acc_column = csv_columns_names["acc"]
+    gyro_column = csv_columns_names["gyro"]
 
     pressure = data[pressure_column]
     acc = data[acc_column]
@@ -303,10 +306,10 @@ def save_datasets(param, data_collect, nb_comb):
 
 # Init
 def dataset_init_v2(param, file):
-    data_column = param.collect["csv_columns_names"]["datasets"]
-    pressure_column = param.collect["csv_columns_names"]["pressure"]
-    left_column = param.collect["csv_columns_names"]["left_pressure"]
-    right_column = param.collect["csv_columns_names"]["right_pressure"]
+    data_column = csv_columns_names["datasets"]
+    pressure_column = csv_columns_names["pressure"]
+    left_column = csv_columns_names["left_pressure"]
+    right_column = csv_columns_names["right_pressure"]
 
     total_dataset = pd.read_csv(filepath_or_buffer=file
                                 , names=data_column, header=None, skiprows=1, encoding='utf7')
@@ -351,9 +354,9 @@ def get_unit_step_v2(data):
 
 # Sampling
 def get_index_sampling_v2(param, data, step_index):
-    pressure_column = param.collect["csv_columns_names"]["pressure"]
-    acc_column = param.collect["csv_columns_names"]["acc"]
-    gyro_column = param.collect["csv_columns_names"]["gyro"]
+    pressure_column = csv_columns_names["pressure"]
+    acc_column = csv_columns_names["acc"]
+    gyro_column = csv_columns_names["gyro"]
 
     pressure = data[pressure_column]
     acc = data[acc_column]
@@ -599,16 +602,16 @@ def save_datasets_v2(param, data_collect, nb_comb):
 
 def vti_init(param, file):
 
-    data_column = param.collect["csv_columns_names"]["datasets"]
+    data_column = csv_columns_names["datasets"]
 
     total_dataset = pd.read_csv(filepath_or_buffer=file
                                 , names=data_column, header=None, skiprows=1, encoding='utf7')
-    left_pressure = total_dataset[param.collect["csv_columns_names"]["left_pressure"]]
-    right_pressure = total_dataset[param.collect["csv_columns_names"]["right_pressure"]]
-    left_acc = total_dataset[param.collect["csv_columns_names"]["left_acc"]]
-    right_acc = total_dataset[param.collect["csv_columns_names"]["right_acc"]]
-    left_gyro = total_dataset[param.collect["csv_columns_names"]["left_gyro"]]
-    right_gyro = total_dataset[param.collect["csv_columns_names"]["right_gyro"]]
+    left_pressure = total_dataset[csv_columns_names["left_pressure"]]
+    right_pressure = total_dataset[csv_columns_names["right_pressure"]]
+    left_acc = total_dataset[csv_columns_names["left_acc"]]
+    right_acc = total_dataset[csv_columns_names["right_acc"]]
+    left_gyro = total_dataset[csv_columns_names["left_gyro"]]
+    right_gyro = total_dataset[csv_columns_names["right_gyro"]]
 
     return [left_pressure, right_pressure], [left_acc, right_acc], [left_gyro, right_gyro]
 

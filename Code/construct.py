@@ -5,6 +5,7 @@ import time
 import datetime
 
 import numpy as np
+from Code.dynamic_library import method_select
 from scipy.io import savemat
 import tensorflow as tf
 from keras.backend import set_session
@@ -23,13 +24,6 @@ parser.add_argument('--Header', type=str, default="not used...", help='output he
 parser.add_argument('--batch_size', type=int, default=64, help='batch_size default=64')
 parser.add_argument('--epochs', type=int, default=20, help='epochs default=20')
 args = parser.parse_args()
-
-method_info = {
-    "repeat": ['smdpi', 'mdpi', 'half', 'dhalf', 'MCCV', 'base', 'sleaveone'],
-    "people": 'LeaveOne',
-    "CrossValidation": ['7CV', 'SCV'],
-    "specific": ['sleaveone']
-}
 
 
 def get_args(arguments_parser, parameter_store):
@@ -51,6 +45,7 @@ class SetProject:
         self.collect = ps["collect"]
         self.sensor_type = self.collect["sensor_type"]
         self.model_name = ps["model"]
+        self.nb_modal = self.collect["nb_modal"]
         print(f"{dt()} :: --collected items :{[*self.collect.keys()]}")
 
 
@@ -120,11 +115,11 @@ def deep_learning_experiment_configuration(param, train, test, label_info):
     nb_people = label_info[1]
     param.nb_modal = 3
 
-    if param.method == method_info['people']:
+    if param.method == method_select['people']:
         nb_repeat = nb_people
-    elif param.method in method_info['repeat']:
+    elif param.method in method_select['repeat']:
         nb_repeat = 20
-    elif param.method in method_info["CrossValidation"]:
+    elif param.method in method_select["CrossValidation"]:
         nb_repeat = param.collect["CrossValidation"] * 5
 
     # config = tf.ConfigProto()
@@ -199,11 +194,11 @@ def deep_learning_experiment_custom(param, train, test, label_info):
     nb_people = label_info[1]
     param.nb_modal = 3
 
-    if param.method == method_info['people']:
+    if param.method == method_select['people']:
         nb_repeat = nb_people
-    elif param.method in method_info['repeat']:
+    elif param.method in method_select['repeat']:
         nb_repeat = 20
-    elif param.method in method_info["CrossValidation"]:
+    elif param.method in method_select["CrossValidation"]:
         nb_repeat = param.collect["CrossValidation"] * 5
 
     # config = tf.ConfigProto()
@@ -338,11 +333,11 @@ def deep_learning_experiment_vector(param, train, test, label_info):
     nb_people = label_info[1]
     param.nb_modal = 3
 
-    if param.method == method_info['people']:
+    if param.method == method_select['people']:
         nb_repeat = nb_people
-    elif param.method in method_info['repeat']:
+    elif param.method in method_select['repeat']:
         nb_repeat = 20
-    elif param.method in method_info["CrossValidation"]:
+    elif param.method in method_select["CrossValidation"]:
         nb_repeat = param.collect["CrossValidation"] * 5
 
     # config = tf.ConfigProto()
@@ -477,11 +472,11 @@ def deep_learning_experiment_ensemble(param, train, test, label_info):
     nb_people = label_info[1]
     param.nb_modal = 3
 
-    if param.method == method_info['people']:
+    if param.method == method_select['people']:
         nb_repeat = nb_people
-    elif param.method in method_info['repeat']:
+    elif param.method in method_select['repeat']:
         nb_repeat = 20
-    elif param.method in method_info["CrossValidation"]:
+    elif param.method in method_select["CrossValidation"]:
         nb_repeat = param.collect["CrossValidation"] * 5
 
     # config = tf.ConfigProto()
@@ -810,15 +805,14 @@ def convert(param):
 
         datasets = loader.data_loader(param, target=nb_combine)
         train, test, nb_class, nb_people = preprocessing.chosen_method(param=param, comb=nb_combine, datasets=datasets)
-        param.nb_modal = 3
 
-        if param.method == method_info['people']:
+        if param.method == method_select['people']:
             nb_repeat = nb_people
-        elif param.method in method_info['repeat']:
+        elif param.method in method_select['repeat']:
             nb_repeat = 20
-        elif param.method in method_info["CrossValidation"]:
+        elif param.method in method_select["CrossValidation"]:
             nb_repeat = param.collect["CrossValidation"] * 5
-        elif param.method in method_info['specific']:
+        elif param.method in method_select['specific']:
             nb_repeat = 5
 
         for repeat in range(nb_repeat):
@@ -838,19 +832,28 @@ def convert(param):
                 tr_label[:, idx] = tr
                 te_label[:, idx] = te
 
-            for idx in range(3):
+            for idx in range(param.nb_modal):
                 tartr[f"data_{idx}"] = np.hstack([tartr[f"data_{idx}"], tr_label])
                 tarte[f"data_{idx}"] = np.hstack([tarte[f"data_{idx}"], te_label])
 
-            tr_data = [tartr["data_0"], tartr["data_1"], tartr["data_2"]]
-            te_data = [tarte["data_0"], tarte["data_1"], tarte["data_2"]]
+            tr_data = list()
+            te_data = list()
+            for idx in range(param.nb_modal):
+                tr_data.append(tartr[f"data_{idx}"])
+                te_data.append(tarte[f"data_{idx}"])
 
             train_dict = dict()
             test_dict = dict()
-            datatype = ['pressure', 'acc', 'gyro']
-            for train_target, test_target, target in zip(tr_data, te_data, datatype):
-                train_dict[target] = train_target
-                test_dict[target] = test_target
+            if param.nb_modal == 3:
+                datatype = ['pressure', 'acc', 'gyro']
+                for train_target, test_target, target in zip(tr_data, te_data, datatype):
+                    train_dict[target] = train_target
+                    test_dict[target] = test_target
+            elif param.nb_modal == 7:
+                datatype = ['pressure', 'acc', 'gyro']
+                for train_target, test_target, target in zip(tr_data, te_data, datatype):
+                    train_dict[target] = train_target
+                    test_dict[target] = test_target
 
             save_dir = '../Result/Convert'
             train_folder = 'train'
