@@ -1,9 +1,9 @@
 {
-  "object" : "create",
+  "object" : "visualize",
   "dataset" : "type",
-  "method": "None",
-  "model": "all",
-  "folder": "200916",
+  "method": "extended_mk2",
+  "model": "histogram",
+  "folder": "raw",
   "collect": {
     "sensor_type": ["pressure", "acc", "gyro"],
     "sensor_number": {
@@ -34,7 +34,6 @@
             "gyro" : ["GYRO_X(L)", "GYRO_Y(L)", "GYRO_Z(L)", "GYRO_X(R)", "GYRO_Y(R)", "GYRO_Z(R)"],
             "left_pressure" : ["p1(L)", "p2(L)", "p3(L)", "p4(L)", "p5(L)", "p6(L)", "p7(L)", "p8(L)"],
             "right_pressure" : ["p1(R)", "p2(R)", "p3(R)", "p4(R)", "p5(R)", "p6(R)", "p7(R)", "p8(R)"]
-    },
-    "remover": []
+    }
   }
 }

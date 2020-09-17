@@ -1,9 +1,10 @@
 import os
+from Code.dynamic_library import column_info
 import pandas as pd
 import csv
 from datetime import datetime
 
-column_info = ['datetime', 'method', 'model', 'samples', 'repeat', 'accuracy', 'loss']
+
 directory = '../Result'
 # directory = '/home/blackcow/mlpa/workspace/gait-rework/gait-rework/Result'
 

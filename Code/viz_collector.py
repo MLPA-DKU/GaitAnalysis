@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 from PIL import Image
 import numpy as np
+import matplotlib as mpl
+import matplotlib.pylab as plt
 
 
 def method_extend(param, dataset):
@@ -57,7 +59,95 @@ def method_extend(param, dataset):
             vector_list = list()
 
             for dim in range(dimension):
-                vic = convert_vector(converted[:, :, dim], converted_mask[:, :, dim])
+                vic = convert_vector(converted[:, :, dim], [converted_mask[:, :, dim], converted_mask[:, :, dim]])
+                vector_list.append(vic)
+
+            line_arr = np.full((mode_size * 14, 10, 3), fill_value=255, dtype=np.uint8)
+            for idx, vec in enumerate(vector_list):
+                if idx is 0:
+                    total_vec = vec
+                else:
+                    total_vec = np.hstack((total_vec, line_arr))
+                    total_vec = np.hstack((total_vec, vec))
+
+            cv2.imwrite(os.path.join(folder_dir, f'{people_number}.png'), total_vec)
+            people_number += 1
+
+
+def method_extend_mk2(param, dataset):
+    mode_size = 1000
+    data_column = param.collect["csv_columns_names"]["datasets"]
+    pressure_column = param.collect["csv_columns_names"]["pressure"]
+    left_column = param.collect["csv_columns_names"]["left_pressure"]
+    right_column = param.collect["csv_columns_names"]["right_pressure"]
+
+    people_number = 0
+
+    for key, data in dataset.items():
+
+        for pn, target in enumerate(data):
+            total_dataset = pd.read_csv(filepath_or_buffer=target
+                                        , names=data_column, header=None, skiprows=1, encoding='utf7')
+
+            df = total_dataset[pressure_column]
+            left_unit_step = get_unit_step(total_dataset[left_column])
+            right_unit_step = get_unit_step(total_dataset[right_column])
+
+            narr = df.to_numpy()
+            people_name, class_name = target.split('/')[-1].split('_')
+
+            # people_name = int(people_name)
+            # class_name = int(class_name)
+
+            dimension = int(narr.shape[0] / mode_size) + 1
+
+            converted = np.zeros((mode_size, narr.shape[1], dimension))
+            left_converted_mask = np.zeros((mode_size, narr.shape[1], dimension))
+            right_converted_mask = np.zeros((mode_size, narr.shape[1], dimension))
+
+            mask_vector = np.zeros(narr.shape)
+            left_masking = convert_unit_step(mask_vector.copy(), left_unit_step)
+            right_masking = convert_unit_step(mask_vector.copy(), right_unit_step)
+
+            for dim in range(dimension):
+                if narr.shape[0] < mode_size:
+                    converted[:narr.shape[0], :, dim] = narr[:, :]
+                    left_converted_mask[:narr.shape[0], :, dim] = left_masking[:, :]
+                elif narr.shape[0] > mode_size and dim + 1 == dimension:
+                    converted[:narr.shape[0] % mode_size, :, dim] = narr[mode_size * dim:, :]
+                    left_converted_mask[:narr.shape[0] % mode_size, :, dim] = left_masking[mode_size * dim:, :]
+                elif narr.shape[0] > mode_size and dim + 1 < dimension:
+                    converted[:, :, dim] = narr[mode_size*dim:mode_size*(dim + 1), :]
+                    left_converted_mask[:, :, dim] = left_masking[mode_size*dim:mode_size*(dim + 1), :]
+
+            for dim in range(dimension):
+                if narr.shape[0] < mode_size:
+                    converted[:narr.shape[0], :, dim] = narr[:, :]
+                    right_converted_mask[:narr.shape[0], :, dim] = right_masking[:, :]
+                elif narr.shape[0] > mode_size and dim + 1 == dimension:
+                    converted[:narr.shape[0] % mode_size, :, dim] = narr[mode_size * dim:, :]
+                    right_converted_mask[:narr.shape[0] % mode_size, :, dim] = right_masking[mode_size * dim:, :]
+                elif narr.shape[0] > mode_size and dim + 1 < dimension:
+                    converted[:, :, dim] = narr[mode_size*dim:mode_size*(dim + 1), :]
+                    right_converted_mask[:, :, dim] = right_masking[mode_size*dim:mode_size*(dim + 1), :]
+
+            save_dir = '../Result/Viualizer/'
+            # folder_dir = os.path.join(save_dir, f'{key}')
+            # folder_dir = os.path.join(save_dir, f'{key}', f'{pn}')
+
+            for e, added in enumerate([save_dir, 'extended_mk2', f'class{key}', f'pn{pn}']):
+                if e == 0:
+                    folder_dir = added
+                else:
+                    folder_dir = os.path.join(folder_dir, added)
+                if os.path.exists(folder_dir) is not True:
+                    os.mkdir(folder_dir)
+
+            vector_list = list()
+
+            for dim in range(dimension):
+                mask = [left_converted_mask[:, :, dim], right_converted_mask[:, :, dim]]
+                vic = convert_vector(converted[:, :, dim], mask)
                 vector_list.append(vic)
 
             line_arr = np.full((mode_size * 14, 10, 3), fill_value=255, dtype=np.uint8)
@@ -165,12 +255,20 @@ def convert_vector(data, mask):
                 vector[w*14:(w+1)*14, h*14:(h+1)*14, :] = (255, 0, 0)
 
     for w in range(wid):
-        for h in range(int(hei)):
-            if mask[w, h] == 0 and data[w, h] == 0:
+        for h in range(int(hei/2)):
+            if mask[0][w, h] == 0 and data[w, h] == 0:
                 continue
-            elif mask[w, h] == 1 and data[w, h] == 1:
+            elif mask[0][w, h] == 1 and data[w, h] == 1:
                 continue
-            elif mask[w, h] == 2:
+            elif mask[0][w, h] == 2:
+                vector[w * 14:(w + 1) * 14, h * 14:(h + 1) * 14, :] = (0, 255, 0)
+
+        for h in range(int(hei/2), hei):
+            if mask[1][w, h] == 0 and data[w, h] == 0:
+                continue
+            elif mask[1][w, h] == 1 and data[w, h] == 1:
+                continue
+            elif mask[1][w, h] == 2:
                 vector[w * 14:(w + 1) * 14, h * 14:(h + 1) * 14, :] = (0, 255, 0)
     return vector
 
@@ -354,3 +452,31 @@ def get_index_vectorized(dataset):
             vec = np.vstack((vec, data))
 
     return vec
+
+
+def method_mapping(param, dataset):
+    data_column = param.collect["csv_columns_names"]["datasets"]
+    pressure_column = param.collect["csv_columns_names"]["pressure"]
+    acc_column = param.collect["csv_columns_names"]["acc"]
+    gyro_column = param.collect["csv_columns_names"]["gyro"]
+    left_column = param.collect["csv_columns_names"]["left_pressure"]
+    right_column = param.collect["csv_columns_names"]["right_pressure"]
+
+    pl = 0
+    # mapping labeling
+    keymap = dict()
+    for key, data in dataset.items():
+
+        for pn, target in enumerate(data):
+            total_dataset = pd.read_csv(filepath_or_buffer=target
+                                        , names=data_column, header=None, skiprows=1, encoding='utf7')
+
+            peo_nb = int(target.split('/')[-1].split('_')[0])
+            pre = np.array(total_dataset[pressure_column].to_numpy())
+            acc = np.array(total_dataset[acc_column].to_numpy())
+            gyro = np.array(total_dataset[gyro_column].to_numpy())
+
+            left_unit_step = get_unit_step(total_dataset[left_column])
+            right_unit_step = get_unit_step(total_dataset[right_column])
+
+            print("Done?")

@@ -1,8 +1,8 @@
 {
   "object" : "experiment",
-  "dataset" : "disease",
-  "method": "sleaveone",
-  "model": "base",
+  "dataset" : "type",
+  "method": "base",
+  "model": "div_base",
   "folder": "200722_type",
   "collect": {
     "sensor_type": ["pressure", "acc", "gyro"],
@@ -20,7 +20,9 @@
       "6" : 5,
       "7" : 6
     },
-    "combine_shape": "tri",
-    "minimum_threshold" : 63
+    "combine_shape": "tri",  "minimum_threshold" : 63,
+    "remover": [],
+    "CrossValidation": 7,
+    "nb_modal": 7
   }
 }

@@ -26,46 +26,56 @@ def dcnn_network(shape_list, nb_class, comb_degree):
     input1 = keras.layers.Input(shape=shape_list[0])
     input1_cnn1 = keras.layers.Conv1D(filters=nb_filter, kernel_size=20,
                                       strides=nb_strides, activation='relu')(input1)
-    input1_batchnorm1 = keras.layers.BatchNormalization()(input1_cnn1)
+    input1_cnn1 = keras.layers.MaxPooling1D(pool_size=2, strides=nb_strides)(input1_cnn1)
+    # input1_batchnorm1 = keras.layers.BatchNormalization()(input1_cnn1)
 
     input1_cnn2 = keras.layers.Conv1D(filters=nb_filter * 2, kernel_size=20,
-                                      strides=nb_strides, activation='relu')(input1_batchnorm1)
-    input1_batchnorm2 = keras.layers.BatchNormalization()(input1_cnn2)
+                                      strides=nb_strides, activation='relu')(input1_cnn1)
+    input1_cnn2 = keras.layers.MaxPooling1D(pool_size=2, strides=nb_strides)(input1_cnn2)
+    # input1_batchnorm2 = keras.layers.BatchNormalization()(input1_cnn2)
 
     input1_cnn3 = keras.layers.Conv1D(filters=nb_filter * 4, kernel_size=20,
-                                      strides=nb_strides, activation='relu')(input1_batchnorm2)
-    input1_batchnorm3 = keras.layers.BatchNormalization()(input1_cnn3)
-    input1_flatten = keras.layers.Flatten()(input1_batchnorm3)
+                                      strides=nb_strides, activation='relu')(input1_cnn2)
+    input1_cnn3 = keras.layers.MaxPooling1D(pool_size=2, strides=nb_strides)(input1_cnn3)
+    input1_flatten = keras.layers.Flatten()(input1_cnn3)
+    # input1_batchnorm3 = keras.layers.BatchNormalization()(input1_cnn3)
+    # input1_flatten = keras.layers.Flatten()(input1_batchnorm3)
 
     # second network
     input2 = keras.layers.Input(shape=shape_list[1])
     input2_cnn1 = keras.layers.Conv1D(filters=nb_filter, kernel_size=20,
                                       strides=nb_strides, activation='relu')(input2)
-    input2_batchnorm1 = keras.layers.BatchNormalization()(input2_cnn1)
+    input2_cnn1 = keras.layers.MaxPooling1D(pool_size=2, strides=nb_strides)(input2_cnn1)
+    # input2_batchnorm1 = keras.layers.BatchNormalization()(input2_cnn1)
 
     input2_cnn2 = keras.layers.Conv1D(filters=nb_filter * 2, kernel_size=20,
-                                      strides=nb_strides, activation='relu')(input2_batchnorm1)
-    input2_batchnorm2 = keras.layers.BatchNormalization()(input2_cnn2)
+                                      strides=nb_strides, activation='relu')(input2_cnn1)
+    input2_cnn2 = keras.layers.MaxPooling1D(pool_size=2, strides=nb_strides)(input2_cnn2)
+    # input2_batchnorm2 = keras.layers.BatchNormalization()(input2_cnn2)
 
     input2_cnn3 = keras.layers.Conv1D(filters=nb_filter * 4, kernel_size=20,
-                                      strides=nb_strides, activation='relu')(input2_batchnorm2)
-    input2_batchnorm3 = keras.layers.BatchNormalization()(input2_cnn3)
-    input2_flatten = keras.layers.Flatten()(input2_batchnorm3)
+                                      strides=nb_strides, activation='relu')(input2_cnn2)
+    input2_cnn3 = keras.layers.MaxPooling1D(pool_size=2, strides=nb_strides)(input2_cnn3)
+    # input2_batchnorm3 = keras.layers.BatchNormalization()(input2_cnn3)
+    input2_flatten = keras.layers.Flatten()(input2_cnn3)
 
     # third network
     input3 = keras.layers.Input(shape=shape_list[2])
     input3_cnn1 = keras.layers.Conv1D(filters=nb_filter, kernel_size=20,
                                       strides=nb_strides, activation='relu')(input3)
-    input3_batchnorm1 = keras.layers.BatchNormalization()(input3_cnn1)
+    input3_cnn1 = keras.layers.MaxPooling1D(pool_size=2, strides=nb_strides)(input3_cnn1)
+    # input3_batchnorm1 = keras.layers.BatchNormalization()(input3_cnn1)
 
     input3_cnn2 = keras.layers.Conv1D(filters=nb_filter * 2, kernel_size=20,
-                                      strides=nb_strides, activation='relu')(input3_batchnorm1)
-    input3_batchnorm2 = keras.layers.BatchNormalization()(input3_cnn2)
+                                      strides=nb_strides, activation='relu')(input3_cnn1)
+    input3_cnn2 = keras.layers.MaxPooling1D(pool_size=2, strides=nb_strides)(input3_cnn2)
+    # input3_batchnorm2 = keras.layers.BatchNormalization()(input3_cnn2)
 
     input3_cnn3 = keras.layers.Conv1D(filters=nb_filter * 4, kernel_size=20,
-                                      strides=nb_strides, activation='relu')(input3_batchnorm2)
-    input3_batchnorm3 = keras.layers.BatchNormalization()(input3_cnn3)
-    input3_flatten = keras.layers.Flatten()(input3_batchnorm3)
+                                      strides=nb_strides, activation='relu')(input3_cnn2)
+    input3_cnn3 = keras.layers.MaxPooling1D(pool_size=2, strides=nb_strides)(input3_cnn3)
+    # input3_batchnorm3 = keras.layers.BatchNormalization()(input3_cnn3)
+    input3_flatten = keras.layers.Flatten()(input3_cnn3)
 
     # merge feature map
     merged_layer = keras.layers.concatenate([input1_flatten, input2_flatten, input3_flatten])
@@ -73,8 +83,8 @@ def dcnn_network(shape_list, nb_class, comb_degree):
     # merged_batchnorm1 = keras.layers.BatchNormalization()(merged_dense1)
     merged_dense2 = keras.layers.Dense(units=fc_unit, activation='relu')(merged_layer)
     # merged_dense2 = keras.layers.Dense(units=256, activation='relu')(merged_layer)
-    merged_batchnorm2 = keras.layers.BatchNormalization()(merged_dense2)
-    merged_dropout = keras.layers.Dropout(0.7)(merged_batchnorm2)
+    # merged_batchnorm2 = keras.layers.BatchNormalization()(merged_dense2)
+    merged_dropout = keras.layers.Dropout(0.7)(merged_dense2)
     merged_class_layer = keras.layers.Dense(units=nb_class, activation='softmax')(merged_dropout)
 
     model = keras.models.Model([input1, input2, input3], merged_class_layer)

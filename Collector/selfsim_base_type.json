@@ -1,9 +1,9 @@
 {
   "object" : "experiment",
-  "dataset" : "disease",
-  "method": "sleaveone",
-  "model": "base",
-  "folder": "200729_disease",
+  "dataset" : "type",
+  "method": "LeaveOne",
+  "model": "similarity",
+  "folder": "200722_type",
   "collect": {
     "sensor_type": ["pressure", "acc", "gyro"],
     "sensor_number": {
@@ -12,12 +12,17 @@
       "gyro" : 6
     },
     "category": {
-      "PA" : 0,
-      "OA" : 1,
-      "NO" : 2
+      "1" : 0,
+      "2" : 1,
+      "3" : 2,
+      "4" : 3,
+      "5" : 4,
+      "6" : 5,
+      "7" : 6
     },
     "combine_shape": "tri",
     "minimum_threshold" : 63,
-    "remover": []
+    "remover": [],
+    "CrossValidation": 7
   }
 }

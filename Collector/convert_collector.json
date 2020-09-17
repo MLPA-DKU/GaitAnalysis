@@ -1,9 +1,9 @@
 {
-  "object" : "experiment",
+  "object" : "convert",
   "dataset" : "disease",
   "method": "sleaveone",
-  "model": "base",
-  "folder": "200729_disease",
+  "model": "convert",
+  "folder": "200730_disease",
   "collect": {
     "sensor_type": ["pressure", "acc", "gyro"],
     "sensor_number": {
@@ -18,6 +18,7 @@
     },
     "combine_shape": "tri",
     "minimum_threshold" : 63,
-    "remover": []
+    "remover": [],
+    "select" : [10, -1]
   }
 }
