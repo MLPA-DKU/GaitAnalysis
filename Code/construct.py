@@ -19,9 +19,9 @@ from Code.result_collector import column_info, directory, DataStore
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser(description="Gait Analysis Project")
-parser.add_argument('--json', type=str, default="ensemble_base_type", help='collector file')
+parser.add_argument('--json', type=str, default="base_base_type", help='collector file')
 parser.add_argument('--Header', type=str, default="not used...", help='output header')
-parser.add_argument('--batch_size', type=int, default=64, help='batch_size default=64')
+parser.add_argument('--batch_size', type=int, default=32, help='batch_size default=64')
 parser.add_argument('--epochs', type=int, default=20, help='epochs default=20')
 args = parser.parse_args()
 
@@ -56,6 +56,8 @@ def chosen_object(object_name):
         create(params)
     elif object_name == "create_v2":
         create_v2(params)
+    elif object_name == "latency":
+        create_latency(params)
     elif object_name == "tsne":
         tsne(params, comb_degree=1)
     elif object_name == "visualize":
@@ -78,9 +80,9 @@ def chosen_object(object_name):
 def experiment(param, comb_degree=5):
     print(f"{dt()} :: Experiments Initialize")
 
-    for nb_combine in range(1, comb_degree+1):
-        # if nb_combine < 1:
-        #     continue
+    for nb_combine in [2, 4]:
+        # if nb_combine != 1:
+        #      continue
         print(f"{dt()} :: {nb_combine} sample experiments")
         param.nb_combine = nb_combine
 
@@ -113,7 +115,6 @@ def experiment(param, comb_degree=5):
 def deep_learning_experiment_configuration(param, train, test, label_info):
     nb_class = label_info[0]
     nb_people = label_info[1]
-    param.nb_modal = 3
 
     if param.method == method_select['people']:
         nb_repeat = nb_people
@@ -125,6 +126,8 @@ def deep_learning_experiment_configuration(param, train, test, label_info):
     # config = tf.ConfigProto()
     # config.gpu_options.allow_growth = True
     for repeat in range(nb_repeat):
+        # if repeat != 1:
+        #     continue
         # config = tf.compat.v1.ConfigProto()
 
         # sess = tf.Session(config=config)
@@ -138,8 +141,12 @@ def deep_learning_experiment_configuration(param, train, test, label_info):
         tartr = train[repeat]
         tarte = test[repeat]
 
-        tr_data = [tartr["data_0"], tartr["data_1"], tartr["data_2"]]
-        te_data = [tarte["data_0"], tarte["data_1"], tarte["data_2"]]
+        tr_data = list()
+        te_data = list()
+        for idx in range(param.nb_modal):
+            tr_data.append(tartr[f"data_{idx}"])
+            te_data.append(tarte[f"data_{idx}"])
+
         if param.datatype == "type":
             tr_label = tartr["tag"] - 1
             te_label = tarte["tag"] - 1
@@ -470,7 +477,7 @@ def deep_learning_experiment_vector(param, train, test, label_info):
 def deep_learning_experiment_ensemble(param, train, test, label_info):
     nb_class = label_info[0]
     nb_people = label_info[1]
-    param.nb_modal = 3
+    # param.nb_modal = 3
 
     if param.method == method_select['people']:
         nb_repeat = nb_people
@@ -495,11 +502,14 @@ def deep_learning_experiment_ensemble(param, train, test, label_info):
         tartr = train[repeat]
         tarte = test[repeat]
 
-        tr_data = [tartr["data_0"], tartr["data_1"], tartr["data_2"]]
-        te_data = [tarte["data_0"], tarte["data_1"], tarte["data_2"]]
+        tr_data = list()
+        te_data = list()
+        for idx in range(param.nb_modal):
+            tr_data.append(tartr[f"data_{idx}"])
+            te_data.append(tarte[f"data_{idx}"])
         if param.datatype == "type":
-            tr_label = tartr["tag"] - 1
-            te_label = tarte["tag"] - 1
+            tr_label = tartr["tag"]
+            te_label = tarte["tag"]
             nb_class = label_info[0]
         elif param.datatype == "disease":
             tr_label = tartr["tag"]
@@ -523,6 +533,8 @@ def deep_learning_experiment_ensemble(param, train, test, label_info):
         model1.fit(x=tr_data, y=cat_tr, epochs=param.epochs, batch_size=param.batch_size
                                  , validation_data=(te_data, cat_te), verbose=2, callbacks=[tb_hist])
 
+        # continue
+
         model2.summary()
         model2.fit(x=tr_data, y=cat_tr, epochs=param.epochs, batch_size=param.batch_size
                                  , validation_data=(te_data, cat_te), verbose=2, callbacks=[tb_hist])
@@ -535,16 +547,16 @@ def deep_learning_experiment_ensemble(param, train, test, label_info):
         print(f"{dt()} :: Test Loss :{model2_score[0]}")
         print(f"{dt()} :: Test Accuracy :{model2_score[1]}")
 
-        if repeat == 0:
-            tracking = [dt(), param.method, param.model_name, param.nb_combine, repeat, model1_score[0], model1_score[1]]
-            ds.stock_result(tracking)
-            tracking = [dt(), param.method, param.model_name, param.nb_combine, repeat, model2_score[0], model2_score[1]]
-            ds.stock_result(tracking)
-        else:
-            tracking = [dt(), repeat, model1_score[0], model1_score[1]]
-            ds.stock_result(tracking)
-            tracking = [dt(), repeat, model2_score[0], model2_score[1]]
-            ds.stock_result(tracking)
+        # if repeat == 0:
+        #     tracking = [dt(), param.method, param.model_name, param.nb_combine, repeat, model1_score[0], model1_score[1]]
+        #     ds.stock_result(tracking)
+        #     tracking = [dt(), param.method, param.model_name, param.nb_combine, repeat, model2_score[0], model2_score[1]]
+        #     ds.stock_result(tracking)
+        # else:
+        #     tracking = [dt(), repeat, model1_score[0], model1_score[1]]
+        #     ds.stock_result(tracking)
+        #     tracking = [dt(), repeat, model2_score[0], model2_score[1]]
+        #     ds.stock_result(tracking)
 
 
         def predict(model1, model2, data, categorical_y):
@@ -579,7 +591,7 @@ def deep_learning_experiment_ensemble(param, train, test, label_info):
         tracking1 = [dt(), param.method, 'model1_cnn', param.nb_combine, repeat, model1_score[0], model1_score[1]]
         tracking2 = [dt(), param.method, 'model2_lstm', param.nb_combine, repeat, model2_score[0], model2_score[1]]
         tracking3 = [dt(), param.method, 'avg_ensemble', param.nb_combine, repeat,
-                     f"m1{ens_model1}_m2{ens_model2}", ens_avg]
+                     f"m1{ens_model1}_m2{ens_model2}", ens_avg[0]]
 
         ds.stock_result(tracking1)
         ds.stock_result(tracking2)
@@ -647,14 +659,19 @@ def machine_learning_experiment_configuration(param, train, test, label_info):
         #     ds.stock_result(tracking)
 
 
+def modular_structure(param, comb_degree=5):
+    # plan : loader - pre-pocessing - [networks] - result
+    NotImplemented
+
+
 # create
 def create(param):
     print(f"{dt()} :: Create Initialize")
     datasets = loader.create_loader(param)
 
     for nb_comb in range(1, 6):
-        if nb_comb == 1:
-            continue
+        # if nb_comb == 1:
+        #     continue
         print(f"{dt()} :: Combine Number : {nb_comb}")
         dc = dict()
         for key, files in datasets.items():
@@ -712,6 +729,39 @@ def create_configuration_v2(param, file, nb_comb):
     resized = cc.resize_samples_v2(param, sampled)
     combined = cc.combined_samples_v2(resized, comb_degree=nb_comb)
     vectorized = cc.vectorized_samples_v2(param, combined, nb_comb)
+    return [file, vectorized]
+
+
+# create
+def create_latency(param):
+    print(f"{dt()} :: Create Initialize")
+    datasets = loader.create_loader(param)
+
+    for nb_comb in range(1, 6):
+        # if nb_comb == 1:
+        #     continue
+        print(f"{dt()} :: Combine Number : {nb_comb}")
+        dc = dict()
+        for key, files in datasets.items():
+            files = sorted(files)
+            param.key = key
+            class_collect = list()
+
+            for file in files:
+                output = create_configuration_latency(param, file, nb_comb)
+                class_collect.append(output)
+            dc[key] = class_collect
+        print(f"{dt()} :: --Combine Number : {nb_comb} Save Initialize")
+        cc.save_datasets(param, dc, nb_comb)
+        print(f"{dt()} :: --Done")
+
+
+def create_configuration_latency(param, file, nb_comb):
+    df, step_index = cc.dataset_init(param, file)
+    sampled = cc.get_index_sampling(param, df, step_index)
+    resized = cc.resize_samples(param, sampled)
+    combined = cc.combined_samples(resized, comb_degree=nb_comb)
+    vectorized = cc.vectorized_samples(param, combined, nb_comb)
     return [file, vectorized]
 
 

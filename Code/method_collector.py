@@ -2,7 +2,8 @@ from random import random, seed, sample
 import numpy as np
 import datetime
 import time
-import Code.preprocessing as pp
+# import Code.preprocessing as pp
+from Code.dynamic_library import method_info
 
 
 def remove_subject(rsub):
@@ -412,9 +413,13 @@ class BaseDivideProcess:
             converted = data
         elif self.model_name in method_info['5columns']:
             if input_shape[1] == 6:
-                left_data = data[:, :3]
-                right_data = data[:, 3:]
-                converted = [left_data.reshape(-1, input_shape[0], 3), right_data.reshape(-1, input_shape[0], 3)]
+                converted = data.reshape(-1, input_shape[0], input_shape[1])
+                left_data = converted[:, :, :3]
+                right_data = converted[:, :, 3:]
+                converted = [left_data, right_data]
+            else:
+                converted = data.reshape(-1, input_shape[0], input_shape[1])
+
         return converted
 
 
@@ -446,7 +451,7 @@ class baseDP(BaseDivideProcess):
                 dataset_list.append(dataset[random_list])
 
             targetp = self.plabel[random_list]
-            targetc = self.tlabel[random_list]
+            targetc = self.tlabel[random_list] - 1
 
             for i, dataset in enumerate(dataset_list):
                 train_dict[f"data_{i}"] = dataset[:1000, :]
