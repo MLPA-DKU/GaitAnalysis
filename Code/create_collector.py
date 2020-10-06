@@ -9,6 +9,7 @@ import datetime
 from scipy.io import savemat
 from Code.utils import dt_printer as dt
 from PIL import Image, ImageDraw
+# from scipy.misc import imresize
 # from skimage.transform import resize as skiresize
 
 
@@ -21,7 +22,13 @@ def dataset_init(param, file):
 
     total_dataset = pd.read_csv(filepath_or_buffer=file
                                 , names=data_column, header=None, skiprows=1, encoding='utf7')
+
+    if param.collect['latency'] != 100:
+        latency = int(100 / param.collect['latency'])
+        total_dataset = total_dataset[::latency]
+
     df = total_dataset[pressure_column]
+
     step_index = get_unit_step(df[left_column])
 
     return total_dataset, step_index
@@ -109,7 +116,10 @@ def resize_samples(param, samples):
         out = list()
         for sample in sensor_sample:
             sample = np.array(sample.to_numpy(), dtype='float32')
-            data = cv2.resize(src=sample, dsize=(sn, mt), interpolation=cv2.INTER_CUBIC)
+            # new method recommend :  data = cv2.resize(src=sample, dsize=(sn, mt), interpolation=cv2.INTER_CUBIC)
+            data = imresize(arr=sample, size=[mt, sn],
+                                           interp='bilinear', mode='F')
+
             out.append(data)
         resized.append(out)
 

@@ -21,6 +21,12 @@ def method_extend(param, dataset):
         for pn, target in enumerate(data):
             total_dataset = pd.read_csv(filepath_or_buffer=target
                                         , names=data_column, header=None, skiprows=1)
+
+            if param.collect['latency'] != 100:
+                latency = int(100 / param.collect['latency'])
+                total_dataset = total_dataset[::latency]
+                print(latency, ': latency')
+
             df = total_dataset[pressure_column]
             unit_step = get_unit_step(total_dataset[left_column])
 

@@ -69,7 +69,7 @@ def model_setting(param, train, test, label_info):
     elif model == 'div_base':
         shape_list = list()
         for i in range(nb_modal):
-            if nb_modal != 0:
+            if i != 0:
                 _, row, col = train[f"data_{i}"][0].shape
                 shape_list.append((row, col))
                 _, row, col = train[f"data_{i}"][1].shape

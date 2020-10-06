@@ -125,7 +125,7 @@ def dcnn_network(shape_list, nb_class, comb_degree):
     merged_dropout = keras.layers.Dropout(0.7)(merged_dense2)
     merged_class_layer = keras.layers.Dense(units=nb_class, activation='softmax')(merged_dropout)
 
-    model = keras.models.Model([input1, left_input2, right_input2, left_input3, right_input3], merged_class_layer)
+    model = keras.models.Model([input1, [left_input2, right_input2], [left_input3, right_input3]], merged_class_layer)
     model.compile(optimizer=keras.optimizers.Adam(lr=0.0001), loss=keras.losses.categorical_crossentropy,
                        metrics=['accuracy'])
     return model
