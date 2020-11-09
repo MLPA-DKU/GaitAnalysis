@@ -74,7 +74,8 @@ class DataStore:
             return storage
         result_info = set_result(df_param)
 
-        file_name = f"{param.model_name}_{param.method}_{datetime.today().strftime('%y%m%d')}_blackbox.csv"
+        file_name = f"{param.model_name}_{param.method}_{param.folder}_" \
+                    f"{datetime.today().strftime('%y%m%d')}_blackbox.csv"
         if os.path.exists(self.savedir) is not True:
             os.mkdir(self.savedir)
 
@@ -96,7 +97,8 @@ class DataStore:
             frame.to_csv(save_path, sep=',', na_rep='NaN', index=False)
 
     def save_result(self, param):
-        file_name = f"{param.model_name}_{param.method}_{datetime.today().strftime('%y%m%d')}.csv"
+        file_name = f"{param.model_name}_{param.method}_{param.folder}" \
+                    f"_{datetime.today().strftime('%y%m%d')}.csv"
         if os.path.exists(self.savedir) is not True:
             os.mkdir(self.savedir)
 

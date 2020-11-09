@@ -1,9 +1,9 @@
 {
-  "object" : "ensemble",
-  "dataset" : "type",
-  "method": "LeaveOne",
-  "model": "ensemble",
-  "folder": "201008_type_100hz",
+  "object" : "experiment",
+  "dataset" : "disease",
+  "method": "base",
+  "model": "base",
+  "folder": "201008_type_10hz",
   "lable": "tag",
   "collect": {
     "sensor_type": ["pressure", "acc", "gyro"],
@@ -22,10 +22,10 @@
       "7" : 6
     },
     "combine_shape": "tri",
-    "minimum_threshold" : 63,
+    "minimum_threshold" : 6,
     "remover": [],
     "CrossValidation": 7,
     "nb_modal": 3,
-    "latency": 100
+    "latency": 10
   }
 }

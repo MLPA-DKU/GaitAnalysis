@@ -15,6 +15,11 @@ def remove_subject(rsub):
 
 
 def method_base(param, comb, datasets):
+    if param.collect["specific"] == 1:
+        temp = []
+        for data in datasets:
+            temp.append(data[data[:, -1] == 1])
+        datasets = temp
     BaseDivideProcess(param.method, param.model_name, dataset=datasets)
     if param.datatype == "disease":
         BaseDivideProcess.nb_class += 1
@@ -236,6 +241,11 @@ def method_dhalf(param, comb, datasets):
 
 
 def method_half(param, comb, datasets):
+    if param.collect["specific"] == 1:
+        temp = []
+        for data in datasets:
+            temp.append(data[data[:, -1] == 1])
+        datasets = temp
     BaseDivideProcess(param.method, param.model_name, dataset=datasets)
     if param.datatype == "disease":
         BaseDivideProcess.nb_class += 1

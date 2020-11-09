@@ -1,8 +1,8 @@
 {
-  "object" : "ensemble",
+  "object" : "experiment",
   "dataset" : "type",
-  "method": "LeaveOne",
-  "model": "ensemble",
+  "method": "base",
+  "model": "lgbm",
   "folder": "201008_type_100hz",
   "lable": "tag",
   "collect": {
@@ -26,6 +26,7 @@
     "remover": [],
     "CrossValidation": 7,
     "nb_modal": 3,
+    "specific": 0,
     "latency": 100
   }
 }

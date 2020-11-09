@@ -19,7 +19,7 @@ from Code.result_collector import column_info, directory, DataStore
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser(description="Gait Analysis Project")
-parser.add_argument('--json', type=str, default="base_base_type", help='collector file')
+parser.add_argument('--json', type=str, default="create_v3_type", help='collector file')
 parser.add_argument('--Header', type=str, default="not used...", help='output header')
 parser.add_argument('--batch_size', type=int, default=32, help='batch_size default=64')
 parser.add_argument('--epochs', type=int, default=20, help='epochs default=20')
@@ -42,6 +42,7 @@ class SetProject:
         self.datatype = ps["dataset"]
         self.method = ps["method"]
         self.folder = ps["folder"]
+        self.lable = ps["lable"]
         self.collect = ps["collect"]
         self.sensor_type = self.collect["sensor_type"]
         self.model_name = ps["model"]
@@ -56,6 +57,8 @@ def chosen_object(object_name):
         create(params)
     elif object_name == "create_v2":
         create_v2(params)
+    elif object_name == "create_v3":
+        create_v3(params)
     elif object_name == "latency":
         create_latency(params)
     elif object_name == "tsne":
@@ -80,7 +83,7 @@ def chosen_object(object_name):
 def experiment(param, comb_degree=5):
     print(f"{dt()} :: Experiments Initialize")
 
-    for nb_combine in [2, 4]:
+    for nb_combine in [1, 2, 3, 4, 5]:
         # if nb_combine != 1:
         #      continue
         print(f"{dt()} :: {nb_combine} sample experiments")
@@ -104,6 +107,12 @@ def experiment(param, comb_degree=5):
                                                                            datasets=datasets)
             deep_learning_experiment_vector(param, train, test, [nb_class, nb_people])
             ds.save_result(param)
+        elif param.model_name in model_compactor.model_info['ml']:
+            datasets = loader.data_loader(param, target=nb_combine)
+            train, test, nb_class, nb_people = preprocessing.chosen_method(param=param, comb=1,
+                                                                           datasets=datasets)
+            machine_learning_experiment_configuration(param, train, test, [nb_class, nb_people])
+            ds.save_result(param)
         elif param.object == 'ensemble':
             datasets = loader.data_loader(param, nb_combine)
             train, test, nb_class, nb_people = preprocessing.chosen_method(param=param, comb=nb_combine,
@@ -113,8 +122,13 @@ def experiment(param, comb_degree=5):
 
 
 def deep_learning_experiment_configuration(param, train, test, label_info):
-    nb_class = label_info[0]
+    nb_tag = label_info[0]
     nb_people = label_info[1]
+
+    if param.lable == "tag":
+        nb_class = nb_tag
+    elif param.lable == "people":
+        nb_class = nb_people
 
     if param.method == method_select['people']:
         nb_repeat = nb_people
@@ -122,20 +136,10 @@ def deep_learning_experiment_configuration(param, train, test, label_info):
         nb_repeat = 20
     elif param.method in method_select["CrossValidation"]:
         nb_repeat = param.collect["CrossValidation"] * 5
+    elif param.method in method_select['specific']:
+        nb_repeat = 5
 
-    # config = tf.ConfigProto()
-    # config.gpu_options.allow_growth = True
     for repeat in range(nb_repeat):
-        # if repeat != 1:
-        #     continue
-        # config = tf.compat.v1.ConfigProto()
-
-        # sess = tf.Session(config=config)
-        # use GPU memory in the available GPU memory capacity
-
-        # sess = tf.compat.v1.Session(config=config)
-        # set_session(sess)
-
         print(f"{dt()} :: {repeat+1}/{nb_repeat} experiment progress")
 
         tartr = train[repeat]
@@ -148,13 +152,17 @@ def deep_learning_experiment_configuration(param, train, test, label_info):
             te_data.append(tarte[f"data_{idx}"])
 
         if param.datatype == "type":
-            tr_label = tartr["tag"] - 1
-            te_label = tarte["tag"] - 1
-            nb_class = label_info[0]
+            if param.lable == "people":
+                tr_label = tartr[param.lable]
+                te_label = tarte[param.lable]
+            elif param.lable == "tag":
+                tr_label = tartr[param.lable]
+                te_label = tarte[param.lable]
+            # nb_class = label_info[0]
         elif param.datatype == "disease":
-            tr_label = tartr["tag"]
-            te_label = tarte["tag"]
-            nb_class = label_info[0]
+            tr_label = tartr[param.lable]
+            te_label = tarte[param.lable]
+            # nb_class = label_info[0]
 
         cat_tr = preprocessing.to_categorical(tr_label, nb_class)
         cat_te = preprocessing.to_categorical(te_label, nb_class)
@@ -220,12 +228,12 @@ def deep_learning_experiment_custom(param, train, test, label_info):
         tr_data = [tartr["data_0"], tartr["data_1"], tartr["data_2"]]
         te_data = [tarte["data_0"], tarte["data_1"], tarte["data_2"]]
         if param.datatype == "type":
-            tr_label = tartr["tag"] - 1
-            te_label = tarte["tag"] - 1
+            tr_label = tartr[param.lable] - 1
+            te_label = tarte[param.lable] - 1
             nb_class = label_info[0]
         elif param.datatype == "disease":
-            tr_label = tartr["tag"]
-            te_label = tarte["tag"]
+            tr_label = tartr[param.lable]
+            te_label = tarte[param.lable]
             nb_class = label_info[0]
 
         cat_tr = preprocessing.to_categorical(tr_label, nb_class)
@@ -359,12 +367,12 @@ def deep_learning_experiment_vector(param, train, test, label_info):
         tr_data = [tartr["data_0"], tartr["data_1"], tartr["data_2"]]
         te_data = [tarte["data_0"], tarte["data_1"], tarte["data_2"]]
         if param.datatype == "type":
-            tr_label = tartr["tag"] - 1
-            te_label = tarte["tag"] - 1
+            tr_label = tartr[param.lable] - 1
+            te_label = tarte[param.lable] - 1
             nb_class = label_info[0]
         elif param.datatype == "disease":
-            tr_label = tartr["tag"]
-            te_label = tarte["tag"]
+            tr_label = tartr[param.lable]
+            te_label = tarte[param.lable]
             nb_class = label_info[0]
 
         cat_tr = preprocessing.to_categorical(tr_label, nb_class)
@@ -508,12 +516,15 @@ def deep_learning_experiment_ensemble(param, train, test, label_info):
             tr_data.append(tartr[f"data_{idx}"])
             te_data.append(tarte[f"data_{idx}"])
         if param.datatype == "type":
-            tr_label = tartr["tag"]
-            te_label = tarte["tag"]
-            nb_class = label_info[0]
+            if param.lable == "people":
+                tr_label = tartr[param.lable]
+                te_label = tarte[param.lable]
+            elif param.lable == "tag":
+                tr_label = tartr[param.lable] - 1
+                te_label = tarte[param.lable] - 1
         elif param.datatype == "disease":
-            tr_label = tartr["tag"]
-            te_label = tarte["tag"]
+            tr_label = tartr[param.lable]
+            te_label = tarte[param.lable]
             nb_class = label_info[0]
 
         cat_tr = preprocessing.to_categorical(tr_label, nb_class)
@@ -557,7 +568,6 @@ def deep_learning_experiment_ensemble(param, train, test, label_info):
         #     ds.stock_result(tracking)
         #     tracking = [dt(), repeat, model2_score[0], model2_score[1]]
         #     ds.stock_result(tracking)
-
 
         def predict(model1, model2, data, categorical_y):
             model1_predict = model1.predict(data)
@@ -614,15 +624,16 @@ def machine_learning_experiment_configuration(param, train, test, label_info):
     nb_people = label_info[1]
     param.nb_modal = 3
 
-    if param.method == 'LeaveOne':
+    if param.method == method_select['people']:
         nb_repeat = nb_people
-    elif param.method in ['mdpi', 'half', 'dhalf', 'MCCV']:
+    elif param.method in method_select['repeat']:
         nb_repeat = 20
-    elif param.method in ['7CV', 'SCV']:
+    elif param.method in method_select["CrossValidation"]:
         nb_repeat = param.collect["CrossValidation"] * 10
 
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
+
+    # config = tf.ConfigProto()
+    # config.gpu_options.allow_growth = True
     for repeat in range(nb_repeat):
         # config = tf.compat.v1.ConfigProto()
         #
@@ -733,6 +744,40 @@ def create_configuration_v2(param, file, nb_comb):
 
 
 # create
+def create_v3(param):
+    print(f"{dt()} :: Create Initialize")
+    datasets = loader.create_loader(param)
+
+    for nb_comb in range(1, 6):
+        # if nb_comb == 1:
+        #     continue
+        print(f"{dt()} :: Combine Number : {nb_comb}")
+        dc = dict()
+        for key, files in datasets.items():
+            files = sorted(files)
+            param.key = key
+            class_collect = list()
+
+            for file in files:
+                output = create_v3_configuration(param, file, nb_comb)
+                class_collect.append(output)
+            dc[key] = class_collect
+        print(f"{dt()} :: --Combine Number : {nb_comb} Save Initialize")
+        cc.save_datasets(param, dc, nb_comb)
+        print(f"{dt()} :: --Done")
+
+
+def create_v3_configuration(param, file, nb_comb):
+    df, step_index = cc.gc_dataset_init(param, file)
+    sampled = cc.get_index_sampling(param, df, step_index)
+    resized = cc.resize_samples(param, sampled)
+    combined = cc.combined_samples(resized, comb_degree=nb_comb)
+    vectorized = cc.vectorized_samples(param, combined, nb_comb)
+    return [file, vectorized]
+
+
+
+# create
 def create_latency(param):
     print(f"{dt()} :: Create Initialize")
     datasets = loader.create_loader(param)
@@ -770,7 +815,7 @@ def create_and_visualize(param):
     print(f"{dt()} :: Create And Visualize Initialize")
     datasets = loader.create_loader(param)
 
-    for nb_comb in range(1, 6):
+    for nb_comb in [1, 2, 3, 4, 5]:
         print(f"{dt()} :: --Create Combine Number : {nb_comb}")
         dc = dict()
         for key, files in datasets.items():
@@ -872,13 +917,13 @@ def convert(param):
             tarte = test[repeat]
 
             if param.datatype == "type":
-                tartr["tag"] -= 1
-                tarte["tag"] -= 1
+                tartr[param.lable] -= 1
+                tarte[param.lable] -= 1
 
             tr_label = np.zeros([len(tartr["people"]), 2])
             te_label = np.zeros([len(tarte["people"]), 2])
 
-            for idx, (tr, te) in enumerate(zip([tartr["people"], tartr["tag"]], [tarte["people"], tarte["tag"]])):
+            for idx, (tr, te) in enumerate(zip([tartr["people"], tartr[param.lable]], [tarte["people"], tarte[param.lable]])):
                 tr_label[:, idx] = tr
                 te_label[:, idx] = te
 

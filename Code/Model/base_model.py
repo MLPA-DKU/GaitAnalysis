@@ -6,7 +6,7 @@ import tensorflow.keras as keras
 def dcnn_network(shape_list, nb_class, comb_degree):
     nb_filter = 32
     nb_strides = 1
-    kernel_size = 3
+    kernel_size = 3  # default = 20
     
     if int(comb_degree) < 3:
         fc_unit = 3000

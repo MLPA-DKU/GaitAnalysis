@@ -18,8 +18,8 @@ def lstm_block(comb_degree, input_layer):
 
     # input_layer = keras.layers.Input(input_shape)
     hidden_cells = 64 * comb_degree
-    lstm1 = keras.layers.LSTM(hidden_cells, return_sequences=True, recurrent_dropout=0.2)(input_layer)
-    lstm2 = keras.layers.LSTM(hidden_cells, return_sequences=True, recurrent_dropout=0.2)(lstm1)
+    lstm1 = keras.layers.CuDNNLSTM(hidden_cells, return_sequences=True, recurrent_dropout=0.2)(input_layer)
+    lstm2 = keras.layers.CuDNNLSTM(hidden_cells, return_sequences=True, recurrent_dropout=0.2)(lstm1)
     flatten = keras.layers.Flatten()(lstm2)
 
     # model = keras.models.Model(inputs=input_layer, output=flatten)

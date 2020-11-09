@@ -6,11 +6,62 @@ from Code.dynamic_library import csv_columns_names
 import skimage.transform
 import cv2
 import datetime
+import scipy
 from scipy.io import savemat
 from Code.utils import dt_printer as dt
 from PIL import Image, ImageDraw
 # from scipy.misc import imresize
 # from skimage.transform import resize as skiresize
+
+
+# Gaussian Filter Conv Create
+def gc_dataset_init(param, file):
+    GAUSS_SIGMA = 20
+
+    data_column = csv_columns_names["datasets"]
+    # pressure_column = csv_columns_names["pressure"]
+    left_column = csv_columns_names["left_pressure"]
+    right_column = csv_columns_names["right_pressure"]
+
+    total_dataset = pd.read_csv(filepath_or_buffer=file
+                                , names=data_column, header=None, skiprows=1, encoding='utf7')
+
+    left_foot = total_dataset[left_column].to_numpy()
+    right_foot = total_dataset[right_column].to_numpy()
+
+    acc = np.array(total_dataset[csv_columns_names["acc"]].to_numpy(), dtype='float32')
+    end_acc = int(len(acc[0] / 2))
+    left_acc = acc[:, 0:end_acc]
+    right_acc = acc[:, end_acc: 2 * end_acc]
+
+    gyr = np.array(total_dataset[csv_columns_names["gyro"]].to_numpy(), dtype='float32')
+    end_gyr = int(len(acc[0] / 2))
+    left_gyr = gyr[:, 0:end_gyr]
+    right_gyr = gyr[:, end_gyr: 2 * end_gyr]
+
+    lpavg = left_foot.mean(axis=1)
+    rpavg = right_foot.mean(axis=1)
+
+    lpconv = scipy.ndimage.filters.gaussian_filter(lpavg, sigma=GAUSS_SIGMA)
+    rpconv = scipy.ndimage.filters.gaussian_filter(rpavg, sigma=GAUSS_SIGMA)
+
+    diff = [np.diff(lpconv), np.diff(rpconv)]
+
+    limit_L = np.concatenate([0], diff[0], [len(left_foot)])
+    limit_R = np.concatenate([0], diff[1], [len(right_foot)])
+
+    for i in range(2, min(len(limit_L), len(limit_R)) - 2 - 1):
+        left = left_foot[limit_L[i], limit_L[i + 1]].astype('int64')
+        right = right_foot[limit_R[i], limit_R[i + 1]].astype('int64')
+
+        left_fin_acc = left_acc[limit_L[i], limit_L[i + 1]].astype('int64')
+        right_fin_acc = right_acc[limit_R[i], limit_R[i + 1]].astype('int64')
+
+        left_fin_gyr = left_gyr[limit_L[i], limit_L[i + 1]].astype('int64')
+        right_fin_gyr = right_gyr[limit_R[i], limit_R[i + 1]].astype('int64')
+
+        if len(left) >= 87 and len(right) >= 87:
+            unitstep = [left, left_fin_acc, left_fin_gyr]
 
 
 # Init
@@ -185,7 +236,8 @@ def save_datasets(param, data_collect, nb_comb):
     if param.object == "custom":
         save_dir = f"../Datasets/{param.folder}"
     else:
-        save_dir = f"../Datasets/{datetime.datetime.today().strftime('%y%m%d')}_{param.datatype}"
+        save_dir = f"../Datasets/{param.folder}"
+        # save_dir = f"../Datasets/{datetime.datetime.today().strftime('%y%m%d')}_{param.datatype}"
 
     folder_dir = os.path.join(save_dir, f"Sample_{nb_comb}")
     if os.path.exists(save_dir) is not True:
