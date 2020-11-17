@@ -8,6 +8,7 @@ import cv2
 import datetime
 import scipy
 from scipy.io import savemat
+from sklearn.preprocessing import MinMaxScaler
 from Code.utils import dt_printer as dt
 from PIL import Image, ImageDraw
 # from scipy.misc import imresize
@@ -30,12 +31,12 @@ def gc_dataset_init(param, file):
     right_foot = total_dataset[right_column].to_numpy()
 
     acc = np.array(total_dataset[csv_columns_names["acc"]].to_numpy(), dtype='float32')
-    end_acc = int(len(acc[0] / 2))
+    end_acc = int(len(acc[0]) / 2)
     left_acc = acc[:, 0:end_acc]
     right_acc = acc[:, end_acc: 2 * end_acc]
 
     gyr = np.array(total_dataset[csv_columns_names["gyro"]].to_numpy(), dtype='float32')
-    end_gyr = int(len(acc[0] / 2))
+    end_gyr = int(len(gyr[0]) / 2)
     left_gyr = gyr[:, 0:end_gyr]
     right_gyr = gyr[:, end_gyr: 2 * end_gyr]
 
@@ -46,22 +47,279 @@ def gc_dataset_init(param, file):
     rpconv = scipy.ndimage.filters.gaussian_filter(rpavg, sigma=GAUSS_SIGMA)
 
     diff = [np.diff(lpconv), np.diff(rpconv)]
+    # Find the minimum of the curve
+    # Process one foot at a time. Left=side 0, right=side 1
+    unit_limits = [[], []]
+    for side in [0, 1]:
+        prev = 0
+        for i in range(len(diff[side])):
+            if prev < 0 and diff[side][i] >= 0:
+                unit_limits[side].append(i)
+            prev = diff[side][i]
 
-    limit_L = np.concatenate([0], diff[0], [len(left_foot)])
-    limit_R = np.concatenate([0], diff[1], [len(right_foot)])
+    limit_L = np.concatenate(([0], unit_limits[0], [len(left_foot)]))
+    limit_R = np.concatenate(([0], unit_limits[1], [len(right_foot)]))
 
-    for i in range(2, min(len(limit_L), len(limit_R)) - 2 - 1):
-        left = left_foot[limit_L[i], limit_L[i + 1]].astype('int64')
-        right = right_foot[limit_R[i], limit_R[i + 1]].astype('int64')
+    left_unit_list = []
+    right_unit_list = []
 
-        left_fin_acc = left_acc[limit_L[i], limit_L[i + 1]].astype('int64')
-        right_fin_acc = right_acc[limit_R[i], limit_R[i + 1]].astype('int64')
+    for i in range(2, min(len(limit_L), len(limit_R)) - 3):
+        left = left_foot[limit_L[i]:limit_L[i + 1]].astype('int64')
+        right = right_foot[limit_R[i]:limit_R[i + 1]].astype('int64')
 
-        left_fin_gyr = left_gyr[limit_L[i], limit_L[i + 1]].astype('int64')
-        right_fin_gyr = right_gyr[limit_R[i], limit_R[i + 1]].astype('int64')
+        left_fin_acc = left_acc[limit_L[i]:limit_L[i + 1]].astype('int64')
+        right_fin_acc = right_acc[limit_R[i]:limit_R[i + 1]].astype('int64')
 
-        if len(left) >= 87 and len(right) >= 87:
-            unitstep = [left, left_fin_acc, left_fin_gyr]
+        left_fin_gyr = left_gyr[limit_L[i]:limit_L[i + 1]].astype('int64')
+        right_fin_gyr = right_gyr[limit_R[i]:limit_R[i + 1]].astype('int64')
+
+        if len(left) >= 63 and len(right) >= 63:
+            left_unitstep = [left, left_fin_acc, left_fin_gyr]
+            right_unitstep = [right, right_fin_acc, right_fin_gyr]
+
+            left_unit_list.append(left_unitstep)
+            right_unit_list.append(right_unitstep)
+
+    return left_unit_list, right_unit_list
+
+
+# Gaussian Filter Sample Resize
+def resize_v3_samples(param, samples):
+    sensor_numbers = param.collect["sensor_number"]
+    sensor_names = param.sensor_type
+    mt = 63
+
+    min_value = 1000
+    collect_idle = np.array([])
+    for idx, (left, right) in enumerate(zip(samples[0], samples[1])):
+        smallest = min(left[0].shape[0], right[0].shape[0])
+
+        min_value = min(min_value, smallest)
+        print(f"minimum -> {min_value}")
+
+        pn = np.full((mt, 1), int(param.pn))
+        key = np.full((mt, 1), int(param.key))
+
+        left = np.concatenate((left[0], left[1], left[2]), axis=1)
+        right = np.concatenate((right[0], right[1], right[2]), axis=1)
+
+        left = scipy.ndimage.zoom(left, [mt / len(left), 1])
+        right = scipy.ndimage.zoom(right, [mt / len(right), 1])
+
+        merged = np.concatenate((left, right), axis=1)
+        if idx == 0:
+            collect_idle = np.concatenate((merged, key, pn), axis=1)
+        else:
+            temp_idle = np.concatenate((merged, key, pn), axis=1)
+            collect_idle = np.concatenate((collect_idle, temp_idle), axis=0)
+
+    return collect_idle, min_value
+
+
+# Gaussian Filter Normalize
+def normalize_v3_samples(param, samples):
+    mt = param.collect["minimum_threshold"]
+    minValue = [0, 0, 0, 0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1] * 2
+
+    total_merged = np.array([])
+    for idx, [key, dataset] in enumerate(samples.items()):
+        for jdx, data in enumerate(sorted(dataset)):
+            [file, idle_sample] = data
+
+            print(file, idle_sample.shape)
+            if idle_sample.shape[0] < 200:
+                continue
+            if idx == 0 and jdx == 0:
+                total_merged = idle_sample
+            else:
+                try:
+                    total_merged = np.concatenate((total_merged, idle_sample), axis=0)
+                except ValueError:
+                    print("get error!!")
+                    continue
+
+            # irow, icol = idle_sample.shape # icol -> [0: -2], [pn, class]
+            # breakpoint()
+
+    trow, tcol = total_merged.shape
+    normalized = []
+    for i in range(tcol - 2):
+        after = total_merged[:, i]
+        after = after.reshape(-1, 1).astype("float64")
+        scaler = MinMaxScaler(feature_range=(minValue[i], 1))
+        scaler.fit(after)
+        after = scaler.transform(after)[:, 0]
+        normalized.append(after)
+
+    rotate = np.concatenate((np.transpose(normalized), total_merged[:, -2:]), axis=1)
+    rrow, rcol = rotate.shape
+
+    dataset = np.array([])
+    for i in range(0, (rrow // mt) * mt, mt):
+        rows = rotate[i: i+mt]
+
+
+        if i == 0:
+            dataset = rows
+        else:
+            dataset = np.concatenate((dataset, rows), axis=0)
+
+        print(f"now normalize.. {i}/{(rrow // mt) * mt}")
+
+    return dataset
+
+
+# Combine
+def combined_samples_v3(samples, comb_degree):
+    mt = 63
+    samples = samples[samples[:, -2].argsort()]
+
+    combine_sample = []
+    label_sample = []
+    for fidx, i in enumerate(np.unique(samples[:, -2])):
+        pn = i
+        temp1 = samples[np.where(samples[:, -2] == int(i))]
+        temp1 = temp1[temp1[:, -1].argsort()]
+        for fjdx, j in enumerate(np.unique(temp1[:, -1])):
+            temp2 = temp1[np.where(temp1[:, -1] == int(j))]
+            tag = j
+
+            data = np.reshape(temp2[:len(temp2) // (mt * comb_degree) * (mt * comb_degree)],
+                              (-1, mt * comb_degree, len(temp2[0] - 2)))
+
+            label = temp2[:data.shape[0], -2:]
+
+            combine_sample.append(data)
+            label_sample.append(label)
+            print(f" people {pn}, class {tag}, comb degree {comb_degree} combining")
+
+    return [np.vstack(combine_sample), np.vstack(label_sample)]
+
+
+def save_datasets_v3(param, data_collect):
+    mt = param.collect["minimum_threshold"]
+    for nb_comb, collected in data_collect.items():
+
+        dataset, label = collected
+        if param.object == "custom":
+            save_dir = f"../Datasets/{param.folder}"
+        else:
+            save_dir = f"../Datasets/{param.folder}"
+            # save_dir = f"../Datasets/{datetime.datetime.today().strftime('%y%m%d')}_{param.datatype}"
+
+        folder_dir = os.path.join(save_dir, f"Sample_{nb_comb}")
+        if os.path.exists(save_dir) is not True:
+            os.mkdir(save_dir)
+        if os.path.exists(folder_dir) is not True:
+            os.mkdir(folder_dir)
+
+        pl = 0
+        if param.datatype == "disease_add" or param.datatype == "disease":
+            keymap = dict()
+            pressure_data = np.concatenate((dataset[:, :, 0:8], dataset[:, :, 14:22]), axis=1)
+            pressure_data = np.reshape(pressure_data, (-1, mt * len(pressure_data[0]) * nb_comb))
+            acc_data = np.concatenate((dataset[:, :, 8:11], dataset[:, :, 22:25]), axis=1)
+            acc_data = np.reshape(acc_data, (-1, mt * len(acc_data[0]) * nb_comb))
+            gyro_data = np.concatenate((dataset[:, :, 11:14], dataset[:, :, 25:28]), axis=1)
+            gyro_data = np.reshape(gyro_data, (-1, mt * len(gyro_data[0]) * nb_comb))
+
+            pressure_data = np.concatenate((pressure_data, label), axis=1)
+            acc_data = np.concatenate((acc_data, label), axis=1)
+            gyro_data = np.concatenate((gyro_data, label), axis=1)
+
+            # converted = np.reshape((-1, mt * len(combine_sample[0]) * comb_degree))
+            if param.model_name == "dat":
+                file_name = os.path.join(folder_dir, "pressure_dataset.dat")
+                np.savetxt(fname=file_name, X=pressure_data)
+                file_name = os.path.join(folder_dir, "acc_dataset.dat")
+                np.savetxt(fname=file_name, X=acc_data)
+                file_name = os.path.join(folder_dir, "gyro_dataset.dat")
+                np.savetxt(fname=file_name, X=gyro_data)
+
+            elif param.model_name == "npy":
+                np.save(os.path.join(folder_dir, "pressure_dataset.npy"), pressure_data)
+                np.save(os.path.join(folder_dir, "acc_dataset.npy"), acc_data)
+                np.save(os.path.join(folder_dir, "gyro_dataset.npy"), gyro_data)
+            elif param.model_name == "mat":
+                matdict = dict()
+                matdict['pressure'] = pressure_data
+                matdict['acc'] = acc_data
+                matdict['gyro'] = gyro_data
+                savemat(os.path.join(folder_dir, "matfiles.mat"), matdict)
+            elif param.model_name == "all":
+                file_name = os.path.join(folder_dir, "pressure_dataset.dat")
+                np.savetxt(fname=file_name, X=pressure_data)
+                file_name = os.path.join(folder_dir, "acc_dataset.dat")
+                np.savetxt(fname=file_name, X=acc_data)
+                file_name = os.path.join(folder_dir, "gyro_dataset.dat")
+                np.savetxt(fname=file_name, X=gyro_data)
+
+                np.save(os.path.join(folder_dir, "pressure_dataset.npy"), pressure_data)
+                np.save(os.path.join(folder_dir, "acc_dataset.npy"), acc_data)
+                np.save(os.path.join(folder_dir, "gyro_dataset.npy"), gyro_data)
+
+                matdict = dict()
+                matdict['pressure'] = pressure_data
+                matdict['acc'] = acc_data
+                matdict['gyro'] = gyro_data
+                savemat(os.path.join(folder_dir, "matfiles.mat"), matdict)
+
+            f = open(os.path.join(save_dir, 'keymap.txt'), 'w')
+            f.write(str(keymap))
+            f.close()
+
+        elif param.datatype == "type":
+            keymap = dict()
+            pressure_data = np.concatenate((dataset[:, :, 0:8], dataset[:, :, 14:22]), axis=2)
+            pressure_data = np.reshape(pressure_data, (-1, mt * pressure_data.shape[2] * nb_comb))
+            acc_data = np.concatenate((dataset[:, :, 8:11], dataset[:, :, 22:25]), axis=2)
+            acc_data = np.reshape(acc_data, (-1, mt * acc_data.shape[2] * nb_comb))
+            gyro_data = np.concatenate((dataset[:, :, 11:14], dataset[:, :, 25:28]), axis=2)
+            gyro_data = np.reshape(gyro_data, (-1, mt * gyro_data.shape[2] * nb_comb))
+
+            pressure_data = np.concatenate((pressure_data, label -1), axis=1)
+            acc_data = np.concatenate((acc_data, label -1), axis=1)
+            gyro_data = np.concatenate((gyro_data, label -1), axis=1)
+
+            if param.model_name == "dat":
+                file_name = os.path.join(folder_dir, "pressure_dataset.dat")
+                np.savetxt(fname=file_name, X=pressure_data)
+                file_name = os.path.join(folder_dir, "acc_dataset.dat")
+                np.savetxt(fname=file_name, X=acc_data)
+                file_name = os.path.join(folder_dir, "gyro_dataset.dat")
+                np.savetxt(fname=file_name, X=gyro_data)
+
+            elif param.model_name == "npy":
+                np.save(os.path.join(folder_dir, "pressure_dataset.npy"), pressure_data)
+                np.save(os.path.join(folder_dir, "acc_dataset.npy"), acc_data)
+                np.save(os.path.join(folder_dir, "gyro_dataset.npy"), gyro_data)
+            elif param.model_name == "mat":
+                matdict = dict()
+                matdict['pressure'] = pressure_data
+                matdict['acc'] = acc_data
+                matdict['gyro'] = gyro_data
+                savemat(os.path.join(folder_dir, "matfiles.mat"), matdict)
+            elif param.model_name == "all":
+                file_name = os.path.join(folder_dir, "pressure_dataset.dat")
+                np.savetxt(fname=file_name, X=pressure_data)
+                file_name = os.path.join(folder_dir, "acc_dataset.dat")
+                np.savetxt(fname=file_name, X=acc_data)
+                file_name = os.path.join(folder_dir, "gyro_dataset.dat")
+                np.savetxt(fname=file_name, X=gyro_data)
+
+                np.save(os.path.join(folder_dir, "pressure_dataset.npy"), pressure_data)
+                np.save(os.path.join(folder_dir, "acc_dataset.npy"), acc_data)
+                np.save(os.path.join(folder_dir, "gyro_dataset.npy"), gyro_data)
+
+                matdict = dict()
+                matdict['pressure'] = pressure_data
+                matdict['acc'] = acc_data
+                matdict['gyro'] = gyro_data
+                savemat(os.path.join(folder_dir, "matfiles.mat"), matdict)
+
+            f = open(os.path.join(save_dir, 'keymap.txt'), 'w')
+            f.write(str(keymap))
+            f.close()
 
 
 # Init

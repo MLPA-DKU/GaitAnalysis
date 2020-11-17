@@ -397,7 +397,7 @@ class BaseDivideProcess:
         self.data2 = data2[:, :-2]
         self.data3 = data3[:, :-2]
 
-        self.nb_class = int(max(self.tlabel))
+        self.nb_class = int(max(self.tlabel)) + 1
         self.nb_people = int(max(self.plabel)) + 1
 
     def sampling(self):

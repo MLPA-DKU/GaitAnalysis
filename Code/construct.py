@@ -19,7 +19,7 @@ from Code.result_collector import column_info, directory, DataStore
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 parser = argparse.ArgumentParser(description="Gait Analysis Project")
-parser.add_argument('--json', type=str, default="create_v3_type", help='collector file')
+parser.add_argument('--json', type=str, default="base_base_type", help='collector file')
 parser.add_argument('--Header', type=str, default="not used...", help='output header')
 parser.add_argument('--batch_size', type=int, default=32, help='batch_size default=64')
 parser.add_argument('--epochs', type=int, default=20, help='epochs default=20')
@@ -156,8 +156,8 @@ def deep_learning_experiment_configuration(param, train, test, label_info):
                 tr_label = tartr[param.lable]
                 te_label = tarte[param.lable]
             elif param.lable == "tag":
-                tr_label = tartr[param.lable]
-                te_label = tarte[param.lable]
+                tr_label = tartr[param.lable] + 1
+                te_label = tarte[param.lable] + 1
             # nb_class = label_info[0]
         elif param.datatype == "disease":
             tr_label = tartr[param.lable]
@@ -748,33 +748,46 @@ def create_v3(param):
     print(f"{dt()} :: Create Initialize")
     datasets = loader.create_loader(param)
 
+    # for nb_comb in range(1, 6):
+    #     # if nb_comb == 1:
+    #     #     continue
+    # print(f"{dt()} :: Combine Number : {nb_comb}")
+
+    dc = dict()
+    min_vlaue = 1000
+    for key, files in datasets.items():
+        # if int(key) != 6:
+        #     continue
+        files = sorted(files)
+        param.key = key
+        class_collect = list()
+
+        for file in files:
+            pn = int(file.split('/')[-1].split('_')[0])
+            param.pn = pn
+            output, smallest = create_v3_configuration(param, file)
+            min_vlaue = min(min_vlaue, smallest)
+            class_collect.append(output)
+        dc[key] = class_collect
+
+    print("small minumum threshold : ", min_vlaue)
+    data_dict = {}
+    normalized_samples = cc.normalize_v3_samples(param, dc)
     for nb_comb in range(1, 6):
-        # if nb_comb == 1:
+        # if nb_comb < 3:
         #     continue
         print(f"{dt()} :: Combine Number : {nb_comb}")
-        dc = dict()
-        for key, files in datasets.items():
-            files = sorted(files)
-            param.key = key
-            class_collect = list()
-
-            for file in files:
-                output = create_v3_configuration(param, file, nb_comb)
-                class_collect.append(output)
-            dc[key] = class_collect
-        print(f"{dt()} :: --Combine Number : {nb_comb} Save Initialize")
-        cc.save_datasets(param, dc, nb_comb)
-        print(f"{dt()} :: --Done")
+        combined = cc.combined_samples_v3(normalized_samples, nb_comb)
+        data_dict[nb_comb] = combined
+    print(f"{dt()} :: --Combine Save Initialize")
+    cc.save_datasets_v3(param, data_dict)
+    print(f"{dt()} :: --Done")
 
 
-def create_v3_configuration(param, file, nb_comb):
-    df, step_index = cc.gc_dataset_init(param, file)
-    sampled = cc.get_index_sampling(param, df, step_index)
-    resized = cc.resize_samples(param, sampled)
-    combined = cc.combined_samples(resized, comb_degree=nb_comb)
-    vectorized = cc.vectorized_samples(param, combined, nb_comb)
-    return [file, vectorized]
-
+def create_v3_configuration(param, file):
+    left_samples, right_samples = cc.gc_dataset_init(param, file)
+    resized, min_value = cc.resize_v3_samples(param, [left_samples, right_samples])
+    return [file, resized], min_value
 
 
 # create

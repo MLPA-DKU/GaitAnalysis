@@ -3,7 +3,7 @@
   "dataset" : "type",
   "method": "no_noise",
   "model": "all",
-  "folder": "200921_old",
+  "folder": "201112_type_noexcept",
   "lable": "tag",
   "collect": {
     "sensor_type": ["pressure", "acc", "gyro"],

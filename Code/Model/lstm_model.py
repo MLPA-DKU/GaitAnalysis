@@ -32,14 +32,14 @@ def get_model(input_shape, comb_degree):
     model.add(LSTM(hidden_cells, input_shape=input_shape, return_sequences=True, recurrent_dropout=0.2))
     model.add(LSTM(hidden_cells))    # A second layer of LSTM
     model.add(Flatten())
-    model.add(Dense(256 * comb_degree), activation="relu")
+    # model.add(Dense(256 * comb_degree), activation="relu")
     return model
 
 
 # multi modal DCNN
 def lstm_network(shape_list, nb_class, comb_degree):
 
-    input1 = get_convolutional_lstm((shape_list[0]), comb_degree)
+    input1 = get_model((shape_list[0]), comb_degree)
     input2 = get_model((shape_list[1]), comb_degree)
     input3 = get_model((shape_list[2]), comb_degree)
 
